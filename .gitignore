@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.tooling/
+.superpowers/
+Cambusa-Scout.html
+
+# Documenti di lavoro interni e configurazioni locali (non pubblicati)
+docs/superpowers/
+docs/immagini/
+.claude/
