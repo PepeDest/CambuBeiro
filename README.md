@@ -2,7 +2,7 @@
 
 # ⛺ CambuBeiro
 
-**L'app per chi fa cambusa ai campi scout: dal menu alla lista della spesa, senza fogli Excel infiniti.**
+**Strumento dal menu alla lista della spesa, senza fogli Excel.**
 
 ![Licenza MIT](https://img.shields.io/badge/licenza-MIT-green)
 ![Funziona offline](https://img.shields.io/badge/funziona-offline-blue)
@@ -14,14 +14,11 @@
 
 ---
 
-CambuBeiro è un'app **gratuita** e **open source** per i *cambusieri*, cioè chi al campo scout si occupa della cucina e della spesa.
-Tu scrivi quante persone ci sono e cosa si mangia. L'app calcola **quanto comprare**, **quando** comprarlo e **quante confezioni** servono.
+CambuBeiro è un'app **gratuita** e **open source** per chiunque abbia bisogno di gestire grossi e lunghi menù della cucina e della spesa.
+Si inserisce quante persone ci sono e cosa si mangia. L'app calcola **quanto comprare**, **quando** comprarlo e **quante confezioni** servono.
 
-- 🔌 **Funziona senza internet.** È un unico file `.html`: lo apri con un doppio clic e basta.
-- 🔒 **Nessun dato personale.** Contiene solo numeri (quanti adulti, bambini, vegetariani, allergici) e mai nomi. I dati restano nel tuo computer.
-- 🇮🇹 **Tutta in italiano**, pensata per chi non è un informatico.
 
-## ✨ Cosa fa
+## Cosa fa
 
 | | Funzione | In pratica |
 |---|---|---|
@@ -36,7 +33,7 @@ Tu scrivi quante persone ci sono e cosa si mangia. L'app calcola **quanto compra
 
 ## 🍝 Il ricettario
 
-Le ricette nascono da menu veri di campi scout, per lupetti/coccinelle e per ragazzi, più i classici della cucina italiana.
+Le ricette nascono da menu veri, per i più piccoli e per ragazzi, più i classici della cucina italiana.
 
 | Categoria | Ricette | Qualche esempio |
 |---|---:|---|
@@ -54,7 +51,7 @@ Ogni ingrediente (130 in tutto) ha:
 - gli **allergeni**: glutine, lattosio, uova, frutta a guscio, pesce, soia, arachidi, sedano, senape, crostacei;
 - l'indicazione se è **vegetariano**.
 
-> ⚠️ Le dosi e le durate sono stime da campo. Controllale sempre con la tua esperienza e con le etichette dei prodotti, soprattutto per le **allergie**.
+> ⚠️ Le dosi e le durate sono stime. Controllale sempre con la tua esperienza e con le etichette dei prodotti, soprattutto per le **allergie**.
 
 ## 🚀 Come usarla
 
@@ -73,19 +70,6 @@ npm install        # installa le dipendenze
 npm run dev        # app in modalità sviluppo su http://localhost:5173
 npm test           # esegue i test automatici (Vitest)
 npm run build      # crea l'app in un unico file: dist/index.html
-```
-
-**Tecnologie:** [Svelte 4](https://svelte.dev/), TypeScript, [Vite](https://vitejs.dev/) con [vite-plugin-singlefile](https://github.com/richardtallent/vite-plugin-singlefile) per avere un solo file HTML, [SheetJS](https://sheetjs.com/) per l'Excel e [Vitest](https://vitest.dev/) per i test.
-
-### Struttura del progetto
-
-```
-src/
-├── core/        # il "motore": calcolo dosi, conflitti allergeni, spesa a ondate (puro, senza interfaccia)
-├── data/        # il database: ingredienti.ts e ricette.ts
-├── lib/         # azioni, salvataggio, export Excel, collegamento tra motore e schermate
-└── schermate/   # le schermate dell'app (Campo, Presenze, Ricette, Menu, Dosi, Spesa)
-tests/           # test automatici, compresi i controlli sul database
 ```
 
 ### Aggiungere una ricetta al database
@@ -116,6 +100,6 @@ Distribuito con licenza **MIT**: puoi usarlo, modificarlo e condividerlo liberam
 
 <div align="center">
 
-*Fatto con ❤️ per tutti i cambusieri. Buona strada!* 🏕️
+*Vibecodato in una giornata,sii clemente* 🏕️
 
 </div>
