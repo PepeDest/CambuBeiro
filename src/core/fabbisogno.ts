@@ -1,4 +1,4 @@
-import type { Assegnazione, Ricetta, RigaFabbisogno } from './types';
+import type { Aggiustamento, Assegnazione, Ricetta, RigaFabbisogno } from './types';
 
 export function fabbisognoRicetta(ricetta: Ricetta, porzioni: number): RigaFabbisogno[] {
   return ricetta.ingredienti.map((r) => ({
@@ -25,10 +25,15 @@ export function fabbisognoAssegnazione(
   porzioni: number,
   ricetteById: Map<string, Ricetta>,
 ): RigaFabbisogno[] {
+  // Una ricetta sconosciuta (es. file creato con un'altra versione dell'app) non deve
+  // bloccare Dosi e Spesa: il piatto non conta, e il Menu lo segnala come "non trovata".
   const base = ricetteById.get(assegnazione.ricettaId);
-  if (!base) throw new Error(`Ricetta non trovata: ${assegnazione.ricettaId}`);
+  if (!base) return [];
 
-  const varianti = assegnazione.aggiustamenti.filter((a) => a.tipo === 'variante');
+  // Una variante sconosciuta si ignora: quelle persone restano sul piatto base.
+  const varianti = assegnazione.aggiustamenti.filter(
+    (a): a is Extract<Aggiustamento, { tipo: 'variante' }> => a.tipo === 'variante' && ricetteById.has(a.ricettaVarianteId),
+  );
   const porzioniVarianti = varianti.reduce((s, a) => s + a.numeroPersone, 0);
   const porzioniBaseNette = Math.max(0, porzioni - porzioniVarianti);
 
@@ -54,9 +59,7 @@ export function fabbisognoAssegnazione(
 
   // variant recipes
   for (const a of varianti) {
-    const v = ricetteById.get(a.ricettaVarianteId);
-    if (!v) throw new Error(`Ricetta variante non trovata: ${a.ricettaVarianteId}`);
-    for (const riga of fabbisognoRicetta(v, a.numeroPersone)) accumula(acc, riga);
+    for (const riga of fabbisognoRicetta(ricetteById.get(a.ricettaVarianteId)!, a.numeroPersone)) accumula(acc, riga);
   }
 
   return [...acc.values()].filter((r) => r.quantita > 0);

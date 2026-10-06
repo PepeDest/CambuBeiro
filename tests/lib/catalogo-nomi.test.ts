@@ -12,7 +12,7 @@ describe('catalogo: nomi e cache', () => {
     const i = databaseBase.ingredienti[0]!;
     expect(nomeRicetta(p, r.id)).toBe(r.nome);
     expect(nomeIngrediente(p, i.id)).toBe(i.nome);
-    expect(nomeRicetta(p, 'sconosciuto')).toBe('sconosciuto');
+    expect(nomeRicetta(p, 'sconosciuto')).toBe('sconosciuto (ricetta non trovata)');
   });
   it("riusa gli stessi elenchi finché le ricette dell'utente non cambiano", () => {
     const p = progettoVuoto();

@@ -37,7 +37,7 @@ export function ingredientiDisponibili(p: Progetto): Ingrediente[] {
 }
 
 export function nomeRicetta(p: Progetto, id: string): string {
-  return indiceRicette(p).get(id)?.nome ?? id;
+  return indiceRicette(p).get(id)?.nome ?? `${id} (ricetta non trovata)`;
 }
 
 export function nomeIngrediente(p: Progetto, id: string): string {

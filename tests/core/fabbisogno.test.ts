@@ -80,19 +80,16 @@ describe('fabbisognoAssegnazione', () => {
     expect(out.find((r) => r.ingredienteId === 'seitan')!.quantita).toBe(360); // 4 * 90
   });
 
-  it('throws for an unknown base recipe id', () => {
-    expect(() =>
-      fabbisognoAssegnazione({ ricettaId: 'nope', aggiustamenti: [] }, 10, new Map()),
-    ).toThrow();
+  it("una ricetta sconosciuta (es. file di un'altra versione) non blocca il calcolo: non conta", () => {
+    expect(fabbisognoAssegnazione({ ricettaId: 'nope', aggiustamenti: [] }, 10, new Map())).toEqual([]);
   });
 
-  it('throws for an unknown variante recipe id', () => {
-    expect(() =>
-      fabbisognoAssegnazione(
-        { ricettaId: 'pasta_sugo', aggiustamenti: [{ tipo: 'variante', ricettaVarianteId: 'nope', numeroPersone: 4 }] },
-        10, ricetteMap(sugo),
-      ),
-    ).toThrow();
+  it('una variante sconosciuta viene ignorata: quelle persone mangiano il piatto base', () => {
+    const out = fabbisognoAssegnazione(
+      { ricettaId: 'pasta_sugo', aggiustamenti: [{ tipo: 'variante', ricettaVarianteId: 'nope', numeroPersone: 4 }] },
+      10, ricetteMap(sugo),
+    );
+    expect(out.find((r) => r.ingredienteId === 'pasta')!.quantita).toBe(1000); // tutte e 10 le porzioni
   });
 
   it('rimozione that drops an ingredient to exactly zero omits it from the result', () => {
