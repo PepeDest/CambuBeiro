@@ -18,7 +18,8 @@
   let dialogo: HTMLDialogElement;
   let target: { giorno: number; pasto: Pasto } | null = null;
   let cerca = '';
-  $: risultati = target ? cercaRicette($progetto, cerca, target.pasto).slice(0, MAX_RISULTATI) : [];
+  $: trovate = target ? cercaRicette($progetto, cerca, target.pasto) : [];
+  $: risultati = trovate.slice(0, MAX_RISULTATI);
 
   function apriPicker(giorno: number, pasto: Pasto) { target = { giorno, pasto }; cerca = ''; dialogo.showModal(); }
   function scegli(ricettaId: string) {
@@ -87,6 +88,11 @@
     {#if target}
       <h3>Aggiungi a Giorno {target.giorno} · {ETICHETTE_PASTO[target.pasto]}</h3>
       <input type="text" placeholder="Cerca…" bind:value={cerca} />
+      {#if trovate.length > risultati.length}
+        <p class="altre">Ne mostro {risultati.length} su {trovate.length}: scrivi una parte del nome per trovare le altre.</p>
+      {:else if trovate.length === 0}
+        <p class="altre">Nessuna ricetta trovata per questo pasto.</p>
+      {/if}
       <ul>
         {#each risultati as r}
           <li><button on:click={() => scegli(r.id)}>{r.nome} <span class="cat">{r.categoria}</span></button></li>
@@ -100,6 +106,7 @@
 </section>
 
 <style>
+  .altre { margin: 0.3rem 0; font-size: 0.85rem; color: #92400e; }
   .schermata { padding: 1rem 1.5rem; display: flex; flex-direction: column; gap: 1rem; height: 100%; }
   .griglia { overflow: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
   table { border-collapse: separate; border-spacing: 0; }
