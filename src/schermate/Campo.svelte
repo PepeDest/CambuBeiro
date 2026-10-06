@@ -1,10 +1,23 @@
 <script lang="ts">
   import { progetto } from '../lib/store';
-  import { conCampo, impostaNumeroGiorni, impostaRiduzioneBambini, impostaGiorniSpesa } from '../lib/azioni';
+  import { get } from 'svelte/store';
+  import {
+    conCampo, impostaNumeroGiorni, impostaRiduzioneBambini, impostaGiorniSpesa, giorniConDatiOltre, MAX_GIORNI,
+  } from '../lib/azioni';
   import { PASTI, ETICHETTE_PASTO, type Pasto } from '../core';
 
   const setNome = (v: string) => progetto.update((p) => conCampo(p, { ...p.campo, nome: v }));
-  const setGiorni = (v: number) => progetto.update((p) => impostaNumeroGiorni(p, v));
+  // Il numero di giorni si applica quando hai finito di scriverlo (uscendo dal campo o con Invio):
+  // applicarlo a ogni tasto trasformava un campo svuotato in "1" e "14" in "114".
+  function setGiorni(input: HTMLInputElement) {
+    const p = get(progetto);
+    const nuovo = impostaNumeroGiorni(p, +input.value).campo.numeroGiorni;
+    const persi = giorniConDatiOltre(p, nuovo);
+    const ok = persi.length === 0 ||
+      confirm(`I giorni ${persi.join(', ')} hanno piatti o presenze: riducendo il campo verranno cancellati. Continuare?`);
+    if (ok) progetto.update((q) => impostaNumeroGiorni(q, nuovo));
+    input.value = String(get(progetto).campo.numeroGiorni); // mostra il valore davvero applicato
+  }
   const setRiduzione = (percentuale: number) => progetto.update((p) => impostaRiduzioneBambini(p, percentuale));
   const setGiorniSpesa = (testo: string) => progetto.update((p) => impostaGiorniSpesa(p, testo));
   const togglePasto = (id: Pasto, on: boolean) =>
@@ -19,7 +32,7 @@
   </label>
 
   <label>Numero di giorni
-    <input type="number" min="1" value={$progetto.campo.numeroGiorni} on:input={(e) => setGiorni(+e.currentTarget.value)} />
+    <input type="number" min="1" max={MAX_GIORNI} value={$progetto.campo.numeroGiorni} on:change={(e) => setGiorni(e.currentTarget)} />
   </label>
 
   <fieldset>

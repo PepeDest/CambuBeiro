@@ -29,8 +29,32 @@ export function parseGiorniSpesa(testo: string): number[] {
   return ordinati.length > 0 ? ordinati : [1];
 }
 
+/** Durata massima di un campo: oltre, un numero scritto per sbaglio (es. 1000) bloccherebbe l'app. */
+export const MAX_GIORNI = 60;
+
+/** Solo le voci dei giorni 1..n (le chiavi sono i numeri dei giorni). */
+function soloPrimiGiorni<T>(perGiorno: Record<number, T>, n: number): Record<number, T> {
+  return Object.fromEntries(Object.entries(perGiorno).filter(([g]) => Number(g) <= n));
+}
+
+/** Cambia la durata del campo; menu e presenze dei giorni tolti vengono cancellati. */
 export function impostaNumeroGiorni(p: Progetto, valore: number): Progetto {
-  return conCampo(p, { ...p.campo, numeroGiorni: Math.max(1, Math.round(valore || 1)) });
+  const numeroGiorni = Math.min(MAX_GIORNI, Math.max(1, Math.round(valore || 1)));
+  return {
+    ...p,
+    campo: { ...p.campo, numeroGiorni },
+    giorni: soloPrimiGiorni(p.giorni, numeroGiorni),
+    menu: soloPrimiGiorni(p.menu, numeroGiorni),
+  };
+}
+
+/** I giorni dopo `n` che hanno piatti nel menu o presenze modificate (si perderebbero). */
+export function giorniConDatiOltre(p: Progetto, n: number): number[] {
+  const conPiatti = Object.entries(p.menu)
+    .filter(([, pasti]) => Object.values(pasti).some((piatti) => (piatti ?? []).length > 0))
+    .map(([g]) => Number(g));
+  const conPresenze = Object.keys(p.giorni).map(Number);
+  return [...new Set([...conPiatti, ...conPresenze])].filter((g) => g > n).sort((a, b) => a - b);
 }
 
 /** La riduzione si inserisce in percentuale (0-100) e si salva come frazione (0-1). */

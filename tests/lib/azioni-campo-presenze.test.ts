@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   conteggio, impostaPresenza, impostaAllergene, parseGiorniSpesa,
-  impostaNumeroGiorni, impostaRiduzioneBambini, impostaGiorniSpesa,
+  impostaNumeroGiorni, impostaRiduzioneBambini, impostaGiorniSpesa, giorniConDatiOltre, MAX_GIORNI,
 } from '../../src/lib/azioni';
 import { progettoVuoto } from '../../src/core';
 import type { Presenze } from '../../src/core';
@@ -33,6 +33,26 @@ describe('campo', () => {
   it('impostaNumeroGiorni: almeno 1', () => {
     expect(impostaNumeroGiorni(progettoVuoto(), 5).campo.numeroGiorni).toBe(5);
     expect(impostaNumeroGiorni(progettoVuoto(), 0).campo.numeroGiorni).toBe(1);
+  });
+  it('impostaNumeroGiorni: al massimo MAX_GIORNI (un 1000 scritto per sbaglio non blocca l’app)', () => {
+    expect(MAX_GIORNI).toBe(60);
+    expect(impostaNumeroGiorni(progettoVuoto(), 1000).campo.numeroGiorni).toBe(60);
+  });
+  it('impostaNumeroGiorni: riducendo i giorni cancella menu e presenze dei giorni tolti', () => {
+    const p = progettoVuoto();
+    p.campo.numeroGiorni = 5;
+    p.giorni = { 2: base, 5: base };
+    p.menu = { 1: { pranzo: [{ ricettaId: 'pasta_al_sugo', aggiustamenti: [] }] }, 4: { cena: [{ ricettaId: 'caprese', aggiustamenti: [] }] } };
+    const q = impostaNumeroGiorni(p, 3);
+    expect(Object.keys(q.giorni)).toEqual(['2']);
+    expect(Object.keys(q.menu)).toEqual(['1']);
+  });
+  it('giorniConDatiOltre: i giorni dopo N che hanno piatti o presenze modificate', () => {
+    const p = progettoVuoto();
+    p.giorni = { 6: base };
+    p.menu = { 2: { pranzo: [{ ricettaId: 'pasta_al_sugo', aggiustamenti: [] }] }, 5: { cena: [] }, 7: { cena: [{ ricettaId: 'caprese', aggiustamenti: [] }] } };
+    expect(giorniConDatiOltre(p, 4)).toEqual([6, 7]); // il 5 ha solo un pasto vuoto
+    expect(giorniConDatiOltre(p, 7)).toEqual([]);
   });
   it('impostaRiduzioneBambini: percentuale → frazione, limitata a 0-100', () => {
     expect(impostaRiduzioneBambini(progettoVuoto(), 25).campo.riduzioneBambini).toBe(0.25);
