@@ -40,4 +40,28 @@ describe('derivati', () => {
       expect(r.quantitaReale).toBeGreaterThanOrEqual(r.quantita);
     }
   });
+
+  it('nessun avviso sui giorni di spesa quando la spesa arriva prima dei pasti', () => {
+    const { p } = progettoConUnPranzo();
+    expect(sezioniSpesa(p).avvisiGiorni).toEqual([]);
+  });
+
+  it('avvisa se dei pasti vengono prima della prima spesa', () => {
+    const { p, primo } = progettoConUnPranzo();
+    p.campo.numeroGiorni = 3;
+    p.campo.giorniSpesa = [3];
+    p.menu[2] = { cena: [{ ricettaId: primo.id, aggiustamenti: [] }] };
+    expect(sezioniSpesa(p).avvisiGiorni).toEqual([
+      'I pasti dei giorni 1, 2 vengono prima della prima spesa (giorno 3): aggiungi un giorno di spesa all’inizio del campo.',
+    ]);
+  });
+
+  it('avvisa se un giorno di spesa è dopo la fine del campo', () => {
+    const { p } = progettoConUnPranzo();
+    p.campo.giorniSpesa = [1, 10];
+    expect(sezioniSpesa(p).avvisiGiorni).toEqual([
+      'Il giorno di spesa 10 è dopo l’ultimo giorno del campo (giorno 1): non serve.',
+    ]);
+  });
 });
+

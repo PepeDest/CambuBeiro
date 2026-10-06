@@ -14,6 +14,15 @@
     <button class="stampa" on:click={stampa}>🖨️ Stampa</button>
   </div>
 
+  {#if spesa.avvisiGiorni.length > 0}
+    <div class="avvisi">
+      <strong>⚠️ Attenzione ai giorni di spesa</strong>
+      <ul>
+        {#each spesa.avvisiGiorni as testo}<li>{testo}</li>{/each}
+      </ul>
+    </div>
+  {/if}
+
   {#if spesa.avvisi.length > 0}
     <div class="avvisi">
       <strong>⚠️ Attenzione freschezza</strong>

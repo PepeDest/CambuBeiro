@@ -28,9 +28,14 @@ export function datiFoglioMenu(progetto: Progetto): string[][] {
 }
 
 export function datiFoglioSpesa(progetto: Progetto): string[][] {
-  const { sezioni, avvisi } = sezioniSpesa(progetto);
+  const { sezioni, avvisi, avvisiGiorni } = sezioniSpesa(progetto);
   if (sezioni.length === 0) return [['Nessuna spesa']];
   const out: string[][] = [];
+  if (avvisiGiorni.length > 0) {
+    out.push(['Attenzione ai giorni di spesa']);
+    for (const a of avvisiGiorni) out.push([a]);
+    out.push([]);
+  }
   sezioni.forEach((s, i) => {
     out.push([titoloSpesa(s.giornoSpesa)]);
     out.push(['Ingrediente', 'Totale', 'Confezioni']);
