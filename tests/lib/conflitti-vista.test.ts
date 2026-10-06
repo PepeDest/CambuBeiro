@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
-  piattoGestito, conflittiVista, statoConflitti, personeImpegnate, personePresenti, personeDisponibili,
-  puoAggiungereAggiustamento, creaAggiustamento, descriviAggiustamento,
+  conflittiVista, statoConflitti, personeImpegnate, personePresenti, personeDisponibili,
+  puoAggiungereAggiustamento, creaAggiustamento, descriviAggiustamento, ingredientiSostitutivi,
 } from '../../src/lib/conflitti-vista';
 import { assegnaPiatto, aggiungiAggiustamento } from '../../src/lib/azioni';
 import { progettoVuoto } from '../../src/core';
@@ -28,7 +28,6 @@ function scenario() {
 describe('conflitti-vista', () => {
   it('un piatto in conflitto senza aggiustamenti è NON gestito e compare nel riepilogo', () => {
     const p = scenario();
-    expect(piattoGestito(p, 1, 'pranzo', 'lasagne')).toBe(false);
     const stato = statoConflitti(p);
     const ng = stato.nonGestiti;
     expect(ng.some((c) => c.ricettaId === 'lasagne' && c.dettaglio === 'lattosio' && c.personeInteressate === 2)).toBe(true);
@@ -41,13 +40,28 @@ describe('conflitti-vista', () => {
   it('con un aggiustamento il piatto è gestito e sparisce dai non gestiti', () => {
     let p = scenario();
     p = aggiungiAggiustamento(p, 1, 'pranzo', 'lasagne', { tipo: 'rimozione', ingredienteId: 'besciamella', numeroPersone: 2 });
-    expect(piattoGestito(p, 1, 'pranzo', 'lasagne')).toBe(true);
     const stato = statoConflitti(p);
     expect(stato.nonGestiti.length).toBe(0);
     expect(stato.cellaAttiva(1, 'pranzo')).toBe(false);
     expect(stato.statoPiatto(1, 'pranzo', 'lasagne')).toBe('ok');
     // ma resta nella vista completa, marcato gestito
     expect(conflittiVista(p).every((c) => c.gestito)).toBe(true);
+  });
+  it('un aggiustamento che protegge solo una parte delle persone lascia il piatto da gestire', () => {
+    let p = scenario();
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'lasagne', { tipo: 'rimozione', ingredienteId: 'besciamella', numeroPersone: 1 });
+    const c = statoConflitti(p).elenco.find((x) => x.dettaglio === 'lattosio')!;
+    expect(c.coperte).toBe(1);
+    expect(c.gestito).toBe(false);
+    expect(statoConflitti(p).statoPiatto(1, 'pranzo', 'lasagne')).toBe('warn');
+  });
+  it('ricettario vero: lasagne vegetariane come variante NON risolvono il lattosio', () => {
+    let p = progettoVuoto();
+    p.campo.numeroGiorni = 1;
+    p.campo.giornoTipo = { adulti: 10, bambini: 0, vegetariani: 0, allergici: { lattosio: 2 } };
+    p = assegnaPiatto(p, 1, 'pranzo', 'lasagne_bolognese');
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'lasagne_bolognese', { tipo: 'variante', ricettaVarianteId: 'lasagne_vegetariane', numeroPersone: 2 });
+    expect(statoConflitti(p).statoPiatto(1, 'pranzo', 'lasagne_bolognese')).toBe('warn');
   });
   it('personePresenti = adulti + bambini; il cap blocca oltre il limite', () => {
     const p = scenario();
@@ -73,16 +87,32 @@ describe('conflitti-vista', () => {
     expect(puoAggiungereAggiustamento(p, 1, 'pranzo', 'lasagne', 1)).toBe(false);
   });
   it('creaAggiustamento costruisce i tre tipi o segnala il campo mancante', () => {
+    const p = scenario();
     const vuoti = { varianteId: '', ingDaId: '', ingAId: '', ingRimId: '' };
-    expect(creaAggiustamento('rimozione', { ...vuoti, ingRimId: 'besciamella' }, 2))
+    expect(creaAggiustamento('rimozione', { ...vuoti, ingRimId: 'besciamella' }, 2, p))
       .toEqual({ tipo: 'rimozione', ingredienteId: 'besciamella', numeroPersone: 2 });
-    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'a', ingAId: 'b' }, 1))
+    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'a', ingAId: 'b' }, 1, p))
       .toEqual({ tipo: 'sostituzione', ingredienteDaId: 'a', ingredienteAId: 'b', numeroPersone: 1 });
-    expect(creaAggiustamento('variante', { ...vuoti, varianteId: 'lasagne_veg' }, 3))
+    expect(creaAggiustamento('variante', { ...vuoti, varianteId: 'lasagne_veg' }, 3, p))
       .toEqual({ tipo: 'variante', ricettaVarianteId: 'lasagne_veg', numeroPersone: 3 });
-    expect(creaAggiustamento('rimozione', vuoti, 2)).toEqual({ errore: 'Scegli un ingrediente da togliere.' });
-    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'a' }, 2)).toEqual({ errore: 'Scegli entrambi gli ingredienti.' });
-    expect(creaAggiustamento('variante', vuoti, 2)).toEqual({ errore: 'Scegli un piatto alternativo.' });
+    expect(creaAggiustamento('rimozione', vuoti, 2, p)).toEqual({ errore: 'Scegli un ingrediente da togliere.' });
+    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'a' }, 2, p)).toEqual({ errore: 'Scegli entrambi gli ingredienti.' });
+    expect(creaAggiustamento('variante', vuoti, 2, p)).toEqual({ errore: 'Scegli un piatto alternativo.' });
+  });
+  it('una sostituzione deve usare un ingrediente con la stessa unità (g, ml o pz)', () => {
+    const p = progettoVuoto(); // ingredienti del ricettario: uova in pz, farina e riso in g
+    const vuoti = { varianteId: '', ingDaId: '', ingAId: '', ingRimId: '' };
+    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'uova', ingAId: 'farina' }, 2, p))
+      .toEqual({ errore: 'Puoi sostituire solo con un ingrediente che si misura allo stesso modo (pz).' });
+    expect(creaAggiustamento('sostituzione', { ...vuoti, ingDaId: 'pasta', ingAId: 'riso' }, 2, p))
+      .toEqual({ tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'riso', numeroPersone: 2 });
+  });
+  it('ingredientiSostitutivi propone solo ingredienti con la stessa unità, escluso quello tolto', () => {
+    const p = progettoVuoto();
+    const perUova = ingredientiSostitutivi(p, 'uova');
+    expect(perUova.length).toBeGreaterThan(0);
+    expect(perUova.every((i) => i.unita === 'pz' && i.id !== 'uova')).toBe(true);
+    expect(ingredientiSostitutivi(p, '').length).toBeGreaterThan(perUova.length); // nulla scelto → tutti
   });
   it('descriviAggiustamento produce testo leggibile in italiano', () => {
     const p = scenario();

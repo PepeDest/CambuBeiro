@@ -2,6 +2,8 @@ import type { Progetto } from '../core';
 import { progettoVuoto, serializzaProgetto, deserializzaProgetto } from '../core';
 
 export const CHIAVE_STORAGE = 'cambusa-progetto';
+/** Dove finisce una copia del progetto salvato che non si è potuto aprire (per non perderlo). */
+export const CHIAVE_RISERVA = 'cambusa-progetto-riserva';
 
 export interface StorageLike {
   getItem(key: string): string | null;
@@ -14,6 +16,8 @@ export function caricaProgetto(storage: StorageLike): Progetto {
   try {
     return deserializzaProgetto(testo);
   } catch {
+    // Il salvataggio automatico sovrascriverà il progetto illeggibile: prima lo mettiamo da parte.
+    storage.setItem(CHIAVE_RISERVA, testo);
     return progettoVuoto();
   }
 }

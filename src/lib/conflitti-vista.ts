@@ -1,27 +1,28 @@
-import type { Progetto, Pasto, Assegnazione, Aggiustamento } from '../core';
-import { rilevaConflitti, presenzeGiorno } from '../core';
-import { indiceRicette, indiceIngredienti, nomeRicetta, nomeIngrediente } from './catalogo';
+import type { Progetto, Pasto, Assegnazione, Aggiustamento, Ingrediente } from '../core';
+import { rilevaConflitti, personeCoperte, presenzeGiorno } from '../core';
+import { indiceRicette, indiceIngredienti, ingredientiDisponibili, nomeRicetta, nomeIngrediente } from './catalogo';
 
 export interface ConflittoVista {
   giorno: number; pasto: Pasto; ricettaId: string; nomeRicetta: string;
-  tipo: 'allergene' | 'vegetariano'; dettaglio: string; personeInteressate: number; gestito: boolean;
+  tipo: 'allergene' | 'vegetariano'; dettaglio: string; personeInteressate: number;
+  /** Persone davvero protette dagli aggiustamenti del piatto. */
+  coperte: number;
+  /** true quando tutte le persone interessate sono protette. */
+  gestito: boolean;
 }
 
 export function trovaAssegnazione(p: Progetto, giorno: number, pasto: Pasto, ricettaId: string): Assegnazione | undefined {
   return (p.menu[giorno]?.[pasto] ?? []).find((a) => a.ricettaId === ricettaId);
 }
 
-/** Un piatto è "gestito" quando ha almeno un aggiustamento (l'app si fida dell'utente). */
-export function piattoGestito(p: Progetto, giorno: number, pasto: Pasto, ricettaId: string): boolean {
-  return (trovaAssegnazione(p, giorno, pasto, ricettaId)?.aggiustamenti.length ?? 0) > 0;
-}
-
 export function conflittiVista(p: Progetto): ConflittoVista[] {
-  return rilevaConflitti(p, indiceRicette(p), indiceIngredienti(p)).map((c) => ({
-    ...c,
-    nomeRicetta: nomeRicetta(p, c.ricettaId),
-    gestito: piattoGestito(p, c.giorno, c.pasto, c.ricettaId),
-  }));
+  const ricette = indiceRicette(p);
+  const ingredienti = indiceIngredienti(p);
+  return rilevaConflitti(p, ricette, ingredienti).map((c) => {
+    const a = trovaAssegnazione(p, c.giorno, c.pasto, c.ricettaId);
+    const coperte = a ? personeCoperte(c, a, ricette, ingredienti) : 0;
+    return { ...c, nomeRicetta: nomeRicetta(p, c.ricettaId), coperte, gestito: coperte >= c.personeInteressate };
+  });
 }
 
 export interface StatoConflitti {
@@ -73,17 +74,31 @@ export function puoAggiungereAggiustamento(p: Progetto, giorno: number, pasto: P
 
 export interface CampiAggiustamento { varianteId: string; ingDaId: string; ingAId: string; ingRimId: string; }
 
+/**
+ * Gli ingredienti che possono sostituirne uno: solo quelli con la stessa unità (g, ml o pz),
+ * perché la dose passa tale e quale al nuovo ingrediente. Senza ingrediente scelto: tutti.
+ */
+export function ingredientiSostitutivi(p: Progetto, ingDaId: string): Ingrediente[] {
+  const unita = indiceIngredienti(p).get(ingDaId)?.unita;
+  return ingredientiDisponibili(p).filter((i) => !ingDaId || (i.id !== ingDaId && (!unita || i.unita === unita)));
+}
+
 /** Costruisce l'aggiustamento dai campi del modulo, o restituisce l'errore da mostrare. */
 export function creaAggiustamento(
-  tipo: Aggiustamento['tipo'], c: CampiAggiustamento, numeroPersone: number,
+  tipo: Aggiustamento['tipo'], c: CampiAggiustamento, numeroPersone: number, p: Progetto,
 ): Aggiustamento | { errore: string } {
   if (tipo === 'variante') {
     return c.varianteId ? { tipo, ricettaVarianteId: c.varianteId, numeroPersone } : { errore: 'Scegli un piatto alternativo.' };
   }
   if (tipo === 'sostituzione') {
-    return c.ingDaId && c.ingAId
-      ? { tipo, ingredienteDaId: c.ingDaId, ingredienteAId: c.ingAId, numeroPersone }
-      : { errore: 'Scegli entrambi gli ingredienti.' };
+    if (!c.ingDaId || !c.ingAId) return { errore: 'Scegli entrambi gli ingredienti.' };
+    const ingredienti = indiceIngredienti(p);
+    const da = ingredienti.get(c.ingDaId)?.unita;
+    const a = ingredienti.get(c.ingAId)?.unita;
+    if (da && a && da !== a) {
+      return { errore: `Puoi sostituire solo con un ingrediente che si misura allo stesso modo (${da}).` };
+    }
+    return { tipo, ingredienteDaId: c.ingDaId, ingredienteAId: c.ingAId, numeroPersone };
   }
   return c.ingRimId ? { tipo, ingredienteId: c.ingRimId, numeroPersone } : { errore: 'Scegli un ingrediente da togliere.' };
 }

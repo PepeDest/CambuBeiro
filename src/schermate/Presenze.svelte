@@ -3,16 +3,10 @@
   import {
     conGiornoTipo, conPresenzeGiorno, rimuoviPresenzeGiorno, impostaPresenza, impostaAllergene, type CampoPresenze,
   } from '../lib/azioni';
-  import { presenzeGiorno, giorniCampo, type Allergene } from '../core';
+  import { presenzeGiorno, giorniCampo, ALLERGENI, ETICHETTE_ALLERGENE, type Allergene } from '../core';
 
-  // Gli allergeni più comuni, mostrati in tabella.
-  const allergeni: { id: Allergene; etichetta: string }[] = [
-    { id: 'glutine', etichetta: 'Glutine' },
-    { id: 'lattosio', etichetta: 'Lattosio' },
-    { id: 'uova', etichetta: 'Uova' },
-    { id: 'pesce', etichetta: 'Pesce' },
-    { id: 'frutta_a_guscio', etichetta: 'Frutta a guscio' },
-  ];
+  // Tutti gli allergeni che il ricettario conosce: chi ne ha uno deve poter essere segnato.
+  const allergeni = ALLERGENI.map((id) => ({ id, etichetta: ETICHETTE_ALLERGENE[id] }));
 
   $: giorni = giorniCampo($progetto.campo);
 

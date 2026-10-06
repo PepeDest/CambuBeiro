@@ -1,4 +1,5 @@
 import type { Progetto } from './types';
+import { erroreProgetto } from './valida';
 
 export const VERSIONE_FORMATO = 1;
 
@@ -41,5 +42,7 @@ export function deserializzaProgetto(testo: string): Progetto {
   for (const chiave of ['campo', 'giorni', 'menu', 'ricetteUtente', 'ingredientiUtente'] as const) {
     if (p[chiave] === undefined) throw new Error(`File incompleto: manca "${chiave}".`);
   }
+  const errore = erroreProgetto(dati as Record<string, unknown>);
+  if (errore) throw new Error(`Il file non è un progetto valido: ${errore}`);
   return p as Progetto;
 }

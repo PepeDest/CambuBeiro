@@ -3,9 +3,9 @@
   import { aggiungiAggiustamento, rimuoviAggiustamento } from '../lib/azioni';
   import {
     trovaAssegnazione, personePresenti, personeImpegnate, personeDisponibili, puoAggiungereAggiustamento,
-    creaAggiustamento, descriviAggiustamento, type StatoConflitti,
+    creaAggiustamento, descriviAggiustamento, ingredientiSostitutivi, type StatoConflitti,
   } from '../lib/conflitti-vista';
-  import { indiceRicette, ricetteDisponibili, ingredientiDisponibili, nomeIngrediente } from '../lib/catalogo';
+  import { indiceRicette, ricetteDisponibili, nomeIngrediente } from '../lib/catalogo';
   import { ETICHETTE_PASTO, type Pasto, type Aggiustamento } from '../core';
 
   /** Stato dei conflitti già calcolato dal Menu (così non si ricalcola qui). */
@@ -41,14 +41,16 @@
   $: disponibili = personeDisponibili($progetto, giorno, pasto, ricettaId);
   $: ingredientiPiatto = (ricetta?.ingredienti ?? []).map((r) => ({ id: r.ingredienteId, nome: nomeIngrediente($progetto, r.ingredienteId) }));
   $: catalogoRicette = ricetteDisponibili($progetto).filter((r) => r.pasti.includes(pasto) && r.id !== ricettaId);
-  $: catalogoIngredienti = ingredientiDisponibili($progetto);
+  // "Metti" propone solo ingredienti con la stessa unità di quello tolto.
+  $: catalogoIngredienti = ingredientiSostitutivi($progetto, ingDaId);
+  $: if (ingAId && !catalogoIngredienti.some((i) => i.id === ingAId)) ingAId = '';
 
   function aggiungi() {
     if (!puoAggiungereAggiustamento($progetto, giorno, pasto, ricettaId, nPersone)) {
       alert(`Numero persone non valido: al massimo ${disponibili} ancora disponibili.`);
       return;
     }
-    const agg = creaAggiustamento(tipoNuovo, { varianteId, ingDaId, ingAId, ingRimId }, nPersone);
+    const agg = creaAggiustamento(tipoNuovo, { varianteId, ingDaId, ingAId, ingRimId }, nPersone, $progetto);
     if ('errore' in agg) { alert(agg.errore); return; }
     progetto.update((p) => aggiungiAggiustamento(p, giorno, pasto, ricettaId, agg));
     svuotaModulo();
@@ -65,7 +67,7 @@
   {#if conflittiPiatto.length > 0}
     <div class="conflitti">
       {#each conflittiPiatto as c}
-        <div>{c.tipo === 'allergene' ? `Contiene ${c.dettaglio}` : 'Non vegetariano'} — {c.personeInteressate} persone</div>
+        <div>{c.gestito ? '✓' : '⚠️'} {c.tipo === 'allergene' ? `Contiene ${c.dettaglio}` : 'Non vegetariano'} — protette {c.coperte} su {c.personeInteressate} persone</div>
       {/each}
     </div>
   {:else}
@@ -101,7 +103,7 @@
         <select bind:value={ingDaId}><option value="">— ingrediente del piatto —</option>{#each ingredientiPiatto as ing}<option value={ing.id}>{ing.nome}</option>{/each}</select>
       </label>
       <label>Metti
-        <select bind:value={ingAId}><option value="">— ingrediente —</option>{#each catalogoIngredienti as ing}<option value={ing.id}>{ing.nome}</option>{/each}</select>
+        <select bind:value={ingAId}><option value="">— ingrediente —</option>{#each catalogoIngredienti as ing}<option value={ing.id}>{ing.nome} ({ing.unita})</option>{/each}</select>
       </label>
     {:else}
       <label>Ingrediente da togliere

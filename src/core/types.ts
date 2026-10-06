@@ -77,3 +77,7 @@ export const ETICHETTE_PASTO: Record<Pasto, string> = {
 export const ALLERGENI: Allergene[] = [
   'glutine', 'lattosio', 'uova', 'pesce', 'frutta_a_guscio', 'soia', 'arachidi', 'sedano', 'senape', 'crostacei',
 ];
+export const ETICHETTE_ALLERGENE: Record<Allergene, string> = {
+  glutine: 'Glutine', lattosio: 'Lattosio', uova: 'Uova', pesce: 'Pesce', frutta_a_guscio: 'Frutta a guscio',
+  soia: 'Soia', arachidi: 'Arachidi', sedano: 'Sedano', senape: 'Senape', crostacei: 'Crostacei',
+};

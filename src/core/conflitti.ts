@@ -1,4 +1,4 @@
-import type { Progetto, Ricetta, Ingrediente, Allergene, Pasto } from './types';
+import type { Progetto, Ricetta, Ingrediente, Allergene, Pasto, Assegnazione } from './types';
 import { PASTI } from './types';
 import { presenzeGiorno } from './lookup';
 
@@ -47,4 +47,44 @@ export function rilevaConflitti(
     }
   }
   return out;
+}
+
+/**
+ * Quante delle persone di un conflitto sono davvero protette dagli aggiustamenti del piatto.
+ * - Una variante protegge le sue persone solo se NON contiene il problema (allergene o carne/pesce).
+ * - Rimozioni e sostituzioni lavorano ingrediente per ingrediente: una persona è protetta solo
+ *   se TUTTI gli ingredienti problematici sono tolti o cambiati con uno senza il problema.
+ * Le persone delle varianti e quelle del piatto modificato sono distinte, quindi si sommano.
+ */
+export function personeCoperte(
+  conflitto: Pick<Conflitto, 'tipo' | 'dettaglio'>,
+  assegnazione: Assegnazione,
+  ricetteById: Map<string, Ricetta>,
+  ingredientiById: Map<string, Ingrediente>,
+): number {
+  // Stesso criterio permissivo di rilevaConflitti per gli ingredienti sconosciuti.
+  const problematico = (ingredienteId: string): boolean => {
+    const ing = ingredientiById.get(ingredienteId);
+    return conflitto.tipo === 'allergene'
+      ? (ing?.allergeni ?? []).includes(conflitto.dettaglio as Allergene)
+      : !(ing?.vegetariano ?? true);
+  };
+
+  let coperte = 0;
+  for (const a of assegnazione.aggiustamenti) {
+    if (a.tipo !== 'variante') continue;
+    const variante = ricetteById.get(a.ricettaVarianteId);
+    if (variante && !variante.ingredienti.some((r) => problematico(r.ingredienteId))) coperte += a.numeroPersone;
+  }
+
+  const base = ricetteById.get(assegnazione.ricettaId);
+  const daSistemare = [...new Set((base?.ingredienti ?? []).map((r) => r.ingredienteId).filter(problematico))];
+  if (daSistemare.length === 0) return coperte;
+  const sistemate = daSistemare.map((id) =>
+    assegnazione.aggiustamenti.reduce((s, a) => {
+      if (a.tipo === 'rimozione' && a.ingredienteId === id) return s + a.numeroPersone;
+      if (a.tipo === 'sostituzione' && a.ingredienteDaId === id && !problematico(a.ingredienteAId)) return s + a.numeroPersone;
+      return s;
+    }, 0));
+  return coperte + Math.min(...sistemate);
 }

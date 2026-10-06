@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { caricaProgetto, salvaProgettoLocale, CHIAVE_STORAGE, type StorageLike } from '../../src/lib/persistenza';
+import { caricaProgetto, salvaProgettoLocale, CHIAVE_STORAGE, CHIAVE_RISERVA, type StorageLike } from '../../src/lib/persistenza';
 import { progettoVuoto } from '../../src/core';
 
 function fakeStorage(iniziale: Record<string, string> = {}): StorageLike & { dati: Record<string, string> } {
@@ -22,5 +22,11 @@ describe('persistenza', () => {
   it('contenuto rovinato → progetto vuoto (nessun crash)', () => {
     const s = fakeStorage({ [CHIAVE_STORAGE]: '{ rotto' });
     expect(caricaProgetto(s)).toEqual(progettoVuoto());
+  });
+  it('contenuto non valido → ne tiene una copia di riserva prima di ripartire da vuoto', () => {
+    const rovinato = JSON.stringify({ ...progettoVuoto(), campo: {} });
+    const s = fakeStorage({ [CHIAVE_STORAGE]: rovinato });
+    expect(caricaProgetto(s)).toEqual(progettoVuoto());
+    expect(s.dati[CHIAVE_RISERVA]).toBe(rovinato);
   });
 });

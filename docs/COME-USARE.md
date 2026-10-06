@@ -13,8 +13,13 @@ tuo browser e funziona **senza internet**.
 Dalla cartella del progetto: `npm run build` → il nuovo `dist/index.html` è pronto.
 
 ## Avvisi allergeni e "gestito"
-Nel Menu, un piatto con un conflitto mostra ⚠️. Quando aggiungi un aggiustamento
-(variante, sostituzione o rimozione) il piatto passa a ✓ "gestito": l'app si fida
-che tu abbia risolto, NON verifica da sola. Se un piatto ha più avvisi (es. lattosio
-E non vegetariano), controlla di averli coperti tutti: basta un aggiustamento perché
-diventi ✓.
+Nel Menu, un piatto con un conflitto mostra ⚠️. Con gli aggiustamenti (variante,
+sostituzione o rimozione) proteggi le persone interessate; il piatto passa a ✓ "gestito"
+solo quando **tutte** sono protette, e l'app lo controlla da sola:
+- una variante conta solo se non contiene lo stesso allergene (o carne/pesce per i vegetariani);
+- se più ingredienti contengono l'allergene, vanno tolti o sostituiti tutti;
+- una sostituzione conta solo se il nuovo ingrediente non ha l'allergene.
+
+In "Gestisci" vedi per ogni avviso quante persone sono protette (es. "protette 1 su 2").
+Una sostituzione è possibile solo con un ingrediente che si misura allo stesso modo
+(grammi, millilitri o pezzi).
