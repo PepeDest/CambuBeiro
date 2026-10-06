@@ -50,3 +50,9 @@ export function cercaRicette(p: Progetto, testo: string, pasto?: Pasto): Ricetta
     (r) => (pasto === undefined || r.pasti.includes(pasto)) && (q === '' || r.nome.toLowerCase().includes(q)),
   );
 }
+
+const idRicetteBase = new Set(databaseBase.ricette.map((r) => r.id));
+/** true se la ricetta fa parte del ricettario (anche se l'utente l'ha personalizzata). */
+export function eRicettaBase(id: string): boolean {
+  return idRicetteBase.has(id);
+}

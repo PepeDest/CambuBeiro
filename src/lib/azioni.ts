@@ -125,3 +125,11 @@ export function aggiungiRicettaUtente(p: Progetto, r: Ricetta): Progetto {
 export function aggiungiIngredienteUtente(p: Progetto, i: Ingrediente): Progetto {
   return { ...p, ingredientiUtente: [...p.ingredientiUtente.filter((x) => x.id !== i.id), i] };
 }
+
+export function rimuoviRicettaUtente(p: Progetto, id: string): Progetto {
+  return { ...p, ricetteUtente: p.ricetteUtente.filter((x) => x.id !== id) };
+}
+
+export function rimuoviIngredienteUtente(p: Progetto, id: string): Progetto {
+  return { ...p, ingredientiUtente: p.ingredientiUtente.filter((x) => x.id !== id) };
+}

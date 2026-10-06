@@ -47,9 +47,37 @@ export function formIngredienteVuoto(): FormIngrediente {
   };
 }
 
-/** Ricetta dell'utente dal modulo, o l'errore da mostrare. `unitaDi` dà l'unità di un ingrediente. */
+/** Il modulo compilato con una ricetta esistente, per modificarla o personalizzarla. */
+export function formDaRicetta(r: Ricetta): FormRicetta {
+  return {
+    nome: r.nome,
+    categoria: r.categoria,
+    pasti: Object.fromEntries(PASTI.map((p) => [p, r.pasti.includes(p)])) as Record<Pasto, boolean>,
+    righe: r.ingredienti.map((x) => ({ ingredienteId: x.ingredienteId, dosePersona: x.dosePersona })),
+  };
+}
+
+/** Il modulo compilato con un ingrediente esistente, per modificarlo. */
+export function formDaIngrediente(i: Ingrediente): FormIngrediente {
+  return {
+    nome: i.nome,
+    unita: i.unita,
+    categoria: i.categoria,
+    durataGiorni: i.durataGiorni,
+    confQuantita: i.confezione.quantita,
+    confEtichetta: i.confezione.etichetta,
+    allergeni: Object.fromEntries(ALLERGENI.map((a) => [a, i.allergeni.includes(a)])) as Record<Allergene, boolean>,
+    vegetariano: i.vegetariano,
+  };
+}
+
+/**
+ * Ricetta dell'utente dal modulo, o l'errore da mostrare. `unitaDi` dà l'unità di un ingrediente.
+ * Con `originale` la ricetta tiene il suo id: modifica una ricetta tua, oppure personalizza
+ * una del ricettario (la tua versione prende il suo posto).
+ */
 export function creaRicetta(
-  f: FormRicetta, unitaDi: (ingredienteId: string) => Unita, idsEsistenti: string[],
+  f: FormRicetta, unitaDi: (ingredienteId: string) => Unita, idsEsistenti: string[], originale?: Ricetta,
 ): Ricetta | { errore: string } {
   const nome = f.nome.trim();
   const pasti = PASTI.filter((p) => f.pasti[p]);
@@ -62,15 +90,27 @@ export function creaRicetta(
   if (!nome || pasti.length === 0 || ingredienti.length === 0) {
     return { errore: 'Servono: un nome, almeno un pasto e almeno un ingrediente.' };
   }
-  return { id: slugId(nome, idsEsistenti), nome, categoria: f.categoria, pasti, ingredienti, origine: 'utente' };
+  return {
+    id: originale?.id ?? slugId(nome, idsEsistenti), nome, categoria: f.categoria, pasti, ingredienti, origine: 'utente',
+    ...(originale?.varianteDi ? { varianteDi: originale.varianteDi } : {}),
+  };
 }
 
-/** Ingrediente dell'utente dal modulo, o l'errore da mostrare. */
-export function creaIngrediente(f: FormIngrediente, idsEsistenti: string[]): Ingrediente | { errore: string } {
+/**
+ * Ingrediente dell'utente dal modulo, o l'errore da mostrare. Con `originale` si modifica
+ * quell'ingrediente (stesso id); se è già usato (`inUso`) l'unità non può cambiare, perché
+ * le ricette ne indicano la dose in quell'unità.
+ */
+export function creaIngrediente(
+  f: FormIngrediente, idsEsistenti: string[], originale?: Ingrediente, inUso = false,
+): Ingrediente | { errore: string } {
   const nome = f.nome.trim();
   if (!nome) return { errore: "Serve un nome per l'ingrediente." };
+  if (originale && inUso && f.unita !== originale.unita) {
+    return { errore: `Questo ingrediente è già usato: non puoi cambiarne l’unità (${originale.unita}).` };
+  }
   return {
-    id: slugId(nome, idsEsistenti),
+    id: originale?.id ?? slugId(nome, idsEsistenti),
     nome,
     unita: f.unita,
     categoria: f.categoria,

@@ -37,7 +37,8 @@ function avvisiGiorniSpesa(p: Progetto, giorniConPasti: number[]): string[] {
   const prima = Math.min(...p.campo.giorniSpesa);
   const scoperti = giorniConPasti.filter((g) => g < prima);
   if (scoperti.length > 0) {
-    out.push(`I pasti dei giorni ${scoperti.join(', ')} vengono prima della prima spesa (giorno ${prima}): aggiungi un giorno di spesa all’inizio del campo.`);
+    const quali = scoperti.length === 1 ? `del giorno ${scoperti[0]}` : `dei giorni ${scoperti.join(', ')}`;
+    out.push(`I pasti ${quali} vengono prima della prima spesa (giorno ${prima}): aggiungi un giorno di spesa all’inizio del campo.`);
   }
   for (const g of p.campo.giorniSpesa) {
     if (g > p.campo.numeroGiorni) {

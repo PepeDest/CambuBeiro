@@ -23,3 +23,19 @@ solo quando **tutte** sono protette, e l'app lo controlla da sola:
 In "Gestisci" vedi per ogni avviso quante persone sono protette (es. "protette 1 su 2").
 Una sostituzione è possibile solo con un ingrediente che si misura allo stesso modo
 (grammi, millilitri o pezzi).
+
+## Le tue ricette e i tuoi ingredienti
+- **Personalizza** (su una ricetta del ricettario): ne fai la tua versione, che prende il suo
+  posto ovunque, anche nei menu. Con **Ripristina originale** torni a quella di partenza.
+- **Modifica / Elimina** (sulle tue ricette): una ricetta usata nel menu non si può eliminare
+  finché non la togli dal menu.
+- **I tuoi ingredienti** (sotto il pulsante "Aggiungi ricetta"): puoi correggerli, per esempio
+  aggiungere un allergene dimenticato. Se un ingrediente è già usato, la sua unità (g, ml, pz)
+  non si può cambiare e non si può eliminare.
+
+## Se qualcosa va storto
+- Una barra gialla in alto ti avvisa se il browser non riesce a salvare da solo: in quel caso
+  usa **Salva** per non perdere il lavoro.
+- Se il progetto salvato nel browser non si apre più, l'app ne tiene una **copia di riserva**
+  che puoi scaricare dalla barra gialla.
+- Nella **Spesa** l'app ti avvisa se un giorno di spesa arriva dopo i pasti che deve coprire.

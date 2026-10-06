@@ -56,6 +56,15 @@ describe('derivati', () => {
     ]);
   });
 
+  it('con un solo giorno scoperto la frase è al singolare', () => {
+    const { p } = progettoConUnPranzo();
+    p.campo.numeroGiorni = 2;
+    p.campo.giorniSpesa = [2];
+    expect(sezioniSpesa(p).avvisiGiorni).toEqual([
+      'I pasti del giorno 1 vengono prima della prima spesa (giorno 2): aggiungi un giorno di spesa all’inizio del campo.',
+    ]);
+  });
+
   it('avvisa se un giorno di spesa è dopo la fine del campo', () => {
     const { p } = progettoConUnPranzo();
     p.campo.giorniSpesa = [1, 10];

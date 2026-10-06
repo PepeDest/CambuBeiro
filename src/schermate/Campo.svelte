@@ -14,7 +14,7 @@
     const nuovo = impostaNumeroGiorni(p, +input.value).campo.numeroGiorni;
     const persi = giorniConDatiOltre(p, nuovo);
     const ok = persi.length === 0 ||
-      confirm(`I giorni ${persi.join(', ')} hanno piatti o presenze: riducendo il campo verranno cancellati. Continuare?`);
+      confirm(`${persi.length === 1 ? `Il giorno ${persi[0]} ha` : `I giorni ${persi.join(', ')} hanno`} piatti o presenze: riducendo il campo verranno cancellati. Continuare?`);
     if (ok) progetto.update((q) => impostaNumeroGiorni(q, nuovo));
     input.value = String(get(progetto).campo.numeroGiorni); // mostra il valore davvero applicato
   }
