@@ -10,7 +10,8 @@ export function formatNumeroIt(valore: number, decimali = 1): string {
 }
 
 export function formatQuantita(quantita: number, unita: Unita): string {
-  if (unita === 'pz') return `${Math.round(quantita)} pz`;
+  // Pezzi per eccesso: 2,4 uova sono 3 uova da comprare (il margine assorbe gli errori di calcolo).
+  if (unita === 'pz') return `${Math.ceil(quantita - 1e-9)} pz`;
   if (unita === 'g') {
     return quantita >= 1000 ? `${formatNumeroIt(quantita / 1000, 2)} kg` : `${formatNumeroIt(quantita, 0)} g`;
   }

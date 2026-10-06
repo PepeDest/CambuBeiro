@@ -39,7 +39,7 @@
       <strong>⚠️ Conflitti da gestire ({stato.nonGestiti.length})</strong>
       <ul>
         {#each stato.nonGestiti as c}
-          <li><button class="riga-conflitto" on:click={() => gestisci.apri(c.giorno, c.pasto, c.ricettaId)}>Giorno {c.giorno} · {ETICHETTE_PASTO[c.pasto]} · {c.nomeRicetta} → {c.dettaglio} (protette {c.coperte} su {c.personeInteressate})</button></li>
+          <li><button class="riga-conflitto" on:click={() => gestisci.apri(c.giorno, c.pasto, c.ricettaId)}>Giorno {c.giorno} · {ETICHETTE_PASTO[c.pasto]} · {c.nomeRicetta} → {c.etichetta} (protette {c.coperte} su {c.personeInteressate})</button></li>
         {/each}
       </ul>
     </div>

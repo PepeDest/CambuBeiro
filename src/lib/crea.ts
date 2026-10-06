@@ -8,7 +8,7 @@ export interface FormRicetta {
   nome: string;
   categoria: string;
   pasti: Record<Pasto, boolean>;
-  righe: { ingredienteId: string; dosePersona: number }[];
+  righe: { ingredienteId: string; dosePersona: number | null }[];
 }
 
 export interface FormIngrediente {
@@ -22,7 +22,8 @@ export interface FormIngrediente {
   vegetariano: boolean;
 }
 
-export const rigaVuota = (): FormRicetta['righe'][number] => ({ ingredienteId: '', dosePersona: 50 });
+/** Riga nuova senza dose: va scritta a mano (una dose predefinita andrebbe bene per la pasta, non per le uova). */
+export const rigaVuota = (): FormRicetta['righe'][number] => ({ ingredienteId: '', dosePersona: null });
 
 export function formRicettaVuota(): FormRicetta {
   return {
@@ -52,9 +53,12 @@ export function creaRicetta(
 ): Ricetta | { errore: string } {
   const nome = f.nome.trim();
   const pasti = PASTI.filter((p) => f.pasti[p]);
-  const ingredienti: RigaRicetta[] = f.righe
-    .filter((r) => r.ingredienteId && r.dosePersona > 0)
-    .map((r) => ({ ingredienteId: r.ingredienteId, dosePersona: r.dosePersona, unita: unitaDi(r.ingredienteId) }));
+  const scelte = f.righe.filter((r) => r.ingredienteId);
+  if (scelte.some((r) => !(r.dosePersona !== null && r.dosePersona > 0))) {
+    return { errore: 'Scrivi la dose a persona di ogni ingrediente scelto.' };
+  }
+  const ingredienti: RigaRicetta[] = scelte
+    .map((r) => ({ ingredienteId: r.ingredienteId, dosePersona: r.dosePersona!, unita: unitaDi(r.ingredienteId) }));
   if (!nome || pasti.length === 0 || ingredienti.length === 0) {
     return { errore: 'Servono: un nome, almeno un pasto e almeno un ingrediente.' };
   }

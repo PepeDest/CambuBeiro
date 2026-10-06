@@ -67,7 +67,7 @@
   {#if conflittiPiatto.length > 0}
     <div class="conflitti">
       {#each conflittiPiatto as c}
-        <div>{c.gestito ? '✓' : '⚠️'} {c.tipo === 'allergene' ? `Contiene ${c.dettaglio}` : 'Non vegetariano'} — protette {c.coperte} su {c.personeInteressate} persone</div>
+        <div>{c.gestito ? '✓' : '⚠️'} {c.tipo === 'allergene' ? `Contiene: ${c.etichetta}` : 'Non vegetariano'} — protette {c.coperte} su {c.personeInteressate} persone</div>
       {/each}
     </div>
   {:else}

@@ -1,10 +1,12 @@
-import type { Progetto, Pasto, Assegnazione, Aggiustamento, Ingrediente } from '../core';
-import { rilevaConflitti, personeCoperte, presenzeGiorno } from '../core';
+import type { Progetto, Pasto, Assegnazione, Aggiustamento, Ingrediente, Allergene } from '../core';
+import { rilevaConflitti, personeCoperte, presenzeGiorno, ETICHETTE_ALLERGENE } from '../core';
 import { indiceRicette, indiceIngredienti, ingredientiDisponibili, nomeRicetta, nomeIngrediente } from './catalogo';
 
 export interface ConflittoVista {
   giorno: number; pasto: Pasto; ricettaId: string; nomeRicetta: string;
   tipo: 'allergene' | 'vegetariano'; dettaglio: string; personeInteressate: number;
+  /** Il problema in parole (es. "Frutta a guscio", "Vegetariani"). */
+  etichetta: string;
   /** Persone davvero protette dagli aggiustamenti del piatto. */
   coperte: number;
   /** true quando tutte le persone interessate sono protette. */
@@ -21,7 +23,8 @@ export function conflittiVista(p: Progetto): ConflittoVista[] {
   return rilevaConflitti(p, ricette, ingredienti).map((c) => {
     const a = trovaAssegnazione(p, c.giorno, c.pasto, c.ricettaId);
     const coperte = a ? personeCoperte(c, a, ricette, ingredienti) : 0;
-    return { ...c, nomeRicetta: nomeRicetta(p, c.ricettaId), coperte, gestito: coperte >= c.personeInteressate };
+    const etichetta = c.tipo === 'vegetariano' ? 'Vegetariani' : ETICHETTE_ALLERGENE[c.dettaglio as Allergene] ?? c.dettaglio;
+    return { ...c, nomeRicetta: nomeRicetta(p, c.ricettaId), etichetta, coperte, gestito: coperte >= c.personeInteressate };
   });
 }
 

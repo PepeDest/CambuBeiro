@@ -3,7 +3,7 @@
   import { ricetteDisponibili, ingredientiDisponibili, indiceIngredienti, cercaRicette } from '../lib/catalogo';
   import { aggiungiRicettaUtente, aggiungiIngredienteUtente } from '../lib/azioni';
   import { formRicettaVuota, formIngredienteVuoto, rigaVuota, creaRicetta, creaIngrediente } from '../lib/crea';
-  import { PASTI, ETICHETTE_PASTO, ALLERGENI, type Pasto, type Unita } from '../core';
+  import { PASTI, ETICHETTE_PASTO, ALLERGENI, ETICHETTE_ALLERGENE, type Pasto, type Unita } from '../core';
 
   const CATEGORIE = ['primo', 'secondo', 'contorno', 'piatto_unico', 'colazione', 'merenda'];
 
@@ -85,7 +85,7 @@
           <label>Confezione (quantità) <input type="number" min="1" bind:value={fi.confQuantita} /></label>
           <label>Confezione (etichetta) <input type="text" bind:value={fi.confEtichetta} /></label>
           <label class="inline"><input type="checkbox" bind:checked={fi.vegetariano} /> Vegetariano</label>
-          <div class="allergeni">{#each ALLERGENI as a}<label class="inline"><input type="checkbox" bind:checked={fi.allergeni[a]} /> {a}</label>{/each}</div>
+          <div class="allergeni">{#each ALLERGENI as a}<label class="inline"><input type="checkbox" bind:checked={fi.allergeni[a]} /> {ETICHETTE_ALLERGENE[a]}</label>{/each}</div>
           <button on:click={salvaIngrediente}>Salva ingrediente</button>
         </div>
       {/if}

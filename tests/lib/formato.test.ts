@@ -24,6 +24,11 @@ describe('formatQuantita', () => {
   it('pezzi interi', () => {
     expect(formatQuantita(3, 'pz')).toBe('3 pz');
   });
+  it('i pezzi si arrotondano per eccesso (non si compra mezzo uovo in meno)', () => {
+    expect(formatQuantita(2.4, 'pz')).toBe('3 pz');
+    expect(formatQuantita(0.4, 'pz')).toBe('1 pz');
+    expect(formatQuantita(2 + 1e-12, 'pz')).toBe('2 pz'); // errori di arrotondamento dei calcoli
+  });
 });
 
 describe('testoConfezione', () => {

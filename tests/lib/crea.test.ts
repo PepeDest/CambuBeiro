@@ -27,6 +27,16 @@ describe('creaRicetta', () => {
   });
 });
 
+describe('dose della riga nuova', () => {
+  it('una riga nuova parte senza dose (niente 50 uova a persona per sbaglio)', () => {
+    expect(formRicettaVuota().righe[0]!.dosePersona).toBeNull();
+  });
+  it('errore se un ingrediente scelto non ha la dose', () => {
+    const f = { ...formRicettaVuota(), nome: 'X', righe: [{ ingredienteId: 'pasta', dosePersona: 100 }, { ingredienteId: 'uova', dosePersona: null }] };
+    expect(creaRicetta(f, unitaG, [])).toEqual({ errore: 'Scrivi la dose a persona di ogni ingrediente scelto.' });
+  });
+});
+
 describe('creaIngrediente', () => {
   it('costruisce l\'ingrediente con confezione nella stessa unità e gli allergeni scelti', () => {
     const f = formIngredienteVuoto();

@@ -7,5 +7,3 @@ export const databaseBase: { ingredienti: Ingrediente[]; ricette: Ricetta[] } = 
   ricette: RICETTE,
 };
 
-export { INGREDIENTI } from './ingredienti';
-export { RICETTE } from './ricette';

@@ -10,5 +10,6 @@ export function scaricaFile(nome: string, blob: Blob): void {
   a.href = url;
   a.download = nome;
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 0);
+  // Il link si libera dopo un po': revocarlo subito può interrompere il download in alcuni browser.
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }

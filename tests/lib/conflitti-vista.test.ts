@@ -32,6 +32,7 @@ describe('conflitti-vista', () => {
     const ng = stato.nonGestiti;
     expect(ng.some((c) => c.ricettaId === 'lasagne' && c.dettaglio === 'lattosio' && c.personeInteressate === 2)).toBe(true);
     expect(ng[0]!.nomeRicetta).toBe('Lasagne');
+    expect(ng[0]!.etichetta).toBe('Lattosio'); // nome leggibile, non l'id tecnico
     expect(stato.cellaAttiva(1, 'pranzo')).toBe(true);
     expect(stato.statoPiatto(1, 'pranzo', 'lasagne')).toBe('warn');
     expect(stato.cellaAttiva(1, 'cena')).toBe(false);
