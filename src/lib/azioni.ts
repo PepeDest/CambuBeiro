@@ -1,6 +1,10 @@
 import type {
   Progetto, Campo, Presenze, Pasto, Ricetta, Ingrediente, Aggiustamento, Assegnazione, Allergene,
 } from '../core';
+import { MAX_GIORNI } from '../core';
+
+// Qui per chi lo importava già da azioni (es. Campo.svelte).
+export { MAX_GIORNI };
 
 export function conCampo(p: Progetto, campo: Campo): Progetto {
   return { ...p, campo };
@@ -28,9 +32,6 @@ export function parseGiorniSpesa(testo: string): number[] {
   const ordinati = [...new Set(nums)].sort((a, b) => a - b);
   return ordinati.length > 0 ? ordinati : [1];
 }
-
-/** Durata massima di un campo: oltre, un numero scritto per sbaglio (es. 1000) bloccherebbe l'app. */
-export const MAX_GIORNI = 60;
 
 /** Solo le voci dei giorni 1..n (le chiavi sono i numeri dei giorni). */
 function soloPrimiGiorni<T>(perGiorno: Record<number, T>, n: number): Record<number, T> {

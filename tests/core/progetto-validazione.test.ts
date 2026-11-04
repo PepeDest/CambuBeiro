@@ -41,6 +41,7 @@ describe('deserializzaProgetto: controllo del contenuto', () => {
   const casiRotti: [string, (d: any) => void, string][] = [
     ['campo vuoto', (d) => { d.campo = {}; }, 'campo.nome'],
     ['numero giorni non valido', (d) => { d.campo.numeroGiorni = 0; }, 'campo.numeroGiorni'],
+    ['numero giorni enorme (bloccherebbe l’app)', (d) => { d.campo.numeroGiorni = 100000000; }, 'campo.numeroGiorni'],
     ['pasti attivi mancanti', (d) => { delete d.campo.pastiAttivi; }, 'campo.pastiAttivi'],
     ['riduzione fuori scala', (d) => { d.campo.riduzioneBambini = 30; }, 'campo.riduzioneBambini'],
     ['giorni di spesa vuoti', (d) => { d.campo.giorniSpesa = []; }, 'campo.giorniSpesa'],
