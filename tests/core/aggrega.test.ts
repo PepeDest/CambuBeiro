@@ -27,15 +27,27 @@ describe('aggrega', () => {
     expect(rows.find((r) => r.ingredienteId === 'passata_pomodoro')!.quantita).toBe(1600); // 800 + 800
   });
 
-  it('throws when merging the same ingredient id with mismatched units across dishes', () => {
+  it('un ingrediente fuori catalogo usato con unità diverse non blocca: una riga per unità', () => {
     const p = progettoVuoto();
-    p.campo = makeCampo({ numeroGiorni: 1, giornoTipo: makePresenze({ adulti: 10, bambini: 0 }) });
+    p.campo = makeCampo({ numeroGiorni: 2, giornoTipo: makePresenze({ adulti: 10, bambini: 0 }) });
     p.ricetteUtente = [
-      makeRicetta({ id: 'a', ingredienti: [{ ingredienteId: 'x', dosePersona: 80, unita: 'g' }] }),
-      makeRicetta({ id: 'b', ingredienti: [{ ingredienteId: 'x', dosePersona: 50, unita: 'ml' }] }),
+      makeRicetta({ id: 'a', ingredienti: [{ ingredienteId: 'xyz', dosePersona: 80, unita: 'g' }] }),
+      makeRicetta({ id: 'b', ingredienti: [{ ingredienteId: 'xyz', dosePersona: 0.5, unita: 'pz' }] }),
     ];
-    p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], cena: [{ ricettaId: 'b', aggiustamenti: [] }] } };
-    expect(() => fabbisognoGiorno(p, 1, indicizzaRicette(p, []))).toThrow();
+    p.menu = {
+      1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], cena: [{ ricettaId: 'b', aggiustamenti: [] }] },
+      2: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }] },
+    };
+    const ricette = indicizzaRicette(p, []);
+    expect(fabbisognoGiorno(p, 1, ricette)).toEqual([
+      { ingredienteId: 'xyz', quantita: 800, unita: 'g' },
+      { ingredienteId: 'xyz', quantita: 5, unita: 'pz' },
+    ]);
+    // stesso ingrediente e stessa unità si sommano come sempre
+    expect(fabbisognoCampoTotale(p, ricette)).toEqual([
+      { ingredienteId: 'xyz', quantita: 1600, unita: 'g' },
+      { ingredienteId: 'xyz', quantita: 5, unita: 'pz' },
+    ]);
   });
 
   describe('aggiustamenti: le persone diventano porzioni del giorno', () => {

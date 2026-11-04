@@ -1,4 +1,4 @@
-import type { Aggiustamento, Assegnazione, Ricetta, RigaFabbisogno } from './types';
+import type { Aggiustamento, Assegnazione, Ricetta, RigaFabbisogno, Unita } from './types';
 
 export function fabbisognoRicetta(ricetta: Ricetta, porzioni: number): RigaFabbisogno[] {
   return ricetta.ingredienti.map((r) => ({
@@ -8,16 +8,19 @@ export function fabbisognoRicetta(ricetta: Ricetta, porzioni: number): RigaFabbi
   }));
 }
 
+/** Chiave per sommare: stesso ingrediente E stessa unità. */
+export const chiaveRiga = (r: { ingredienteId: string; unita: Unita }): string => `${r.ingredienteId}|${r.unita}`;
+
+/**
+ * Somma la riga a quelle con lo stesso ingrediente e la stessa unità. Unità diverse (solo per
+ * un ingrediente fuori catalogo: per gli altri le sistema ripulisciProgetto) restano righe
+ * separate, perché non c'è un'unità giusta in cui convertirle.
+ */
 export function accumula(acc: Map<string, RigaFabbisogno>, riga: RigaFabbisogno): void {
-  const found = acc.get(riga.ingredienteId);
-  if (found) {
-    if (found.unita !== riga.unita) {
-      throw new Error(`Unità incompatibili per ${riga.ingredienteId}: ${found.unita} vs ${riga.unita}`);
-    }
-    found.quantita += riga.quantita;
-  } else {
-    acc.set(riga.ingredienteId, { ...riga });
-  }
+  const k = chiaveRiga(riga);
+  const found = acc.get(k);
+  if (found) found.quantita += riga.quantita;
+  else acc.set(k, { ...riga });
 }
 
 /** Le porzioni avanzate dai conti con la virgola (es. 1,8e-13) contano zero: in Spesa diventerebbero una confezione. */

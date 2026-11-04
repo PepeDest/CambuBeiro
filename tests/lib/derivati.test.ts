@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { righeDosiCampo, sezioniSpesa } from '../../src/lib/derivati';
+import { creaCartellaExcel } from '../../src/lib/esporta-excel';
 import { progettoVuoto } from '../../src/core';
 import { databaseBase } from '../../src/data';
 
@@ -74,3 +75,25 @@ describe('derivati', () => {
   });
 });
 
+
+describe('derivati: ingrediente fuori catalogo con unità diverse', () => {
+  function progettoXyz() {
+    const p = progettoVuoto();
+    p.campo.numeroGiorni = 1;
+    p.campo.giornoTipo = { adulti: 10, bambini: 0, vegetariani: 0, allergici: {} };
+    p.ricetteUtente = [
+      { id: 'a', nome: 'A', categoria: 'primo', pasti: ['pranzo'], origine: 'utente', ingredienti: [{ ingredienteId: 'xyz', dosePersona: 20, unita: 'g' }] },
+      { id: 'b', nome: 'B', categoria: 'primo', pasti: ['cena'], origine: 'utente', ingredienti: [{ ingredienteId: 'xyz', dosePersona: 0.3, unita: 'pz' }] },
+    ];
+    p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], cena: [{ ricettaId: 'b', aggiustamenti: [] }] } };
+    return p;
+  }
+
+  it('Dosi, Spesa ed Excel non si bloccano: due righe "xyz", una in g e una in pz', () => {
+    const p = progettoXyz();
+    expect(righeDosiCampo(p).map((r) => [r.nome, r.quantita, r.unita])).toEqual([['xyz', 200, 'g'], ['xyz', 3, 'pz']]);
+    const righeSpesa = sezioniSpesa(p).sezioni[0]!.righe;
+    expect(righeSpesa.map((r) => [r.nome, r.quantita, r.unita, r.numeroConfezioni])).toEqual([['xyz', 200, 'g', 0], ['xyz', 3, 'pz', 0]]);
+    expect(() => creaCartellaExcel(p)).not.toThrow();
+  });
+});

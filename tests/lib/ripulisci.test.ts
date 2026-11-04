@@ -53,7 +53,8 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
       { ingredienteId: 'farina', dosePersona: 10, unita: 'g' },
     ] })];
     p.menu = { 1: { pranzo: [{ ricettaId: 'frittata_classica', aggiustamenti: [] }, { ricettaId: 'mia_frittata', aggiustamenti: [] }] } };
-    expect(() => righeDosiCampo(p)).toThrow('Unità incompatibili');
+    // prima: uova in pz e in g, due righe che non si possono sommare
+    expect(righeDosiCampo(p).filter((r) => r.ingredienteId === 'uova')).toHaveLength(2);
 
     const { progetto, avvisi } = ripulisciProgetto(p);
     expect(progetto.ricetteUtente[0]!.ingredienti).toEqual([
@@ -63,9 +64,8 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
     expect(avvisi).toHaveLength(1);
     expect(avvisi[0]).toContain('"Mia frittata"');
     expect(avvisi[0]).toContain('controlla le dosi');
-    expect(() => righeDosiCampo(progetto)).not.toThrow();
+    expect(righeDosiCampo(progetto).filter((r) => r.ingredienteId === 'uova')).toEqual([expect.objectContaining({ quantita: 50, unita: 'pz' })]); // (2+3)*10
     expect(() => sezioniSpesa(progetto)).not.toThrow();
-    expect(righeDosiCampo(progetto).find((r) => r.ingredienteId === 'uova')).toMatchObject({ quantita: 50, unita: 'pz' }); // (2+3)*10
   });
 
   it('un ingrediente del ricettario cambiato di unità torna alla sua, se le ricette del ricettario lo usano', () => {
@@ -79,7 +79,8 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
       cena: [{ ricettaId: 'frittata_classica', aggiustamenti: [{ tipo: 'sostituzione', ingredienteDaId: 'uova', ingredienteAId: 'farina', numeroPersone: 2 }] },
         { ricettaId: 'mia_torta', aggiustamenti: [] }],
     } };
-    expect(() => righeDosiCampo(p)).toThrow('Unità incompatibili');
+    // prima: farina in g (ricettario) e in pz (ricetta tua), due righe
+    expect(righeDosiCampo(p).filter((r) => r.ingredienteId === 'farina')).toHaveLength(2);
 
     const { progetto, avvisi } = ripulisciProgetto(p);
     expect(progetto.ingredientiUtente[0]).toMatchObject({
@@ -91,7 +92,7 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
     expect(avvisi[0]).toContain('"Farina mia"');
     expect(avvisi[1]).toContain('"Mia torta"');
     expect(avvisi[2]).toContain('Tolta 1 sostituzione');
-    expect(() => righeDosiCampo(progetto)).not.toThrow();
+    expect(righeDosiCampo(progetto).filter((r) => r.ingredienteId === 'farina')).toHaveLength(1);
     expect(() => sezioniSpesa(progetto)).not.toThrow();
   });
 
@@ -115,9 +116,36 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
     p.ricetteUtente = [makeRicetta({ id: 'mia', origine: 'utente', ingredienti: [
       { ingredienteId: 'farina', dosePersona: 10, unita: 'g' },
       { ingredienteId: 'tofu', dosePersona: 1, unita: 'pz' },
-      { ingredienteId: 'sconosciuto', dosePersona: 1, unita: 'ml' },
     ] })];
     expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [] });
     expect(ripulisciProgetto(p).progetto).toBe(p);
+  });
+});
+
+// Ingredienti che non esistono (file modificato a mano, ingrediente di un'altra versione):
+// si vedono col codice e i loro allergeni non vengono controllati.
+describe('ripulisciProgetto: ingredienti fuori catalogo', () => {
+  it('avvisa, senza cambiare il progetto (stesso oggetto), elencando i primi codici', () => {
+    const p = progettoVuoto();
+    p.ricetteUtente = [makeRicetta({ id: 'mia', origine: 'utente', ingredienti: [
+      { ingredienteId: 'xyz', dosePersona: 10, unita: 'g' },
+      { ingredienteId: 'pasta', dosePersona: 100, unita: 'g' },
+      { ingredienteId: 'xyz', dosePersona: 1, unita: 'pz' },
+    ] })];
+    p.menu = { 1: { pranzo: [{ ricettaId: 'pasta_al_sugo', aggiustamenti: [
+      { tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'abc', numeroPersone: 1 },
+      { tipo: 'rimozione', ingredienteId: 'def', numeroPersone: 1 },
+    ] }] } };
+    const { progetto, avvisi } = ripulisciProgetto(p);
+    expect(progetto).toBe(p);
+    expect(avvisi).toEqual(['Gli ingredienti "xyz", "abc", "def" non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.']);
+  });
+
+  it('con tanti codici ne elenca pochi e dice quanti altri; con uno solo parla al singolare', () => {
+    const p = progettoVuoto();
+    p.ricetteUtente = [makeRicetta({ id: 'mia', origine: 'utente', ingredienti: ['a1', 'a2', 'a3', 'a4', 'a5'].map((id) => ({ ingredienteId: id, dosePersona: 1, unita: 'g' as const })) })];
+    expect(ripulisciProgetto(p).avvisi[0]).toMatch(/^Gli ingredienti "a1", "a2", "a3" e altri 2 non sono nel ricettario/);
+    p.ricetteUtente = [makeRicetta({ id: 'mia', origine: 'utente', ingredienti: [{ ingredienteId: 'a1', dosePersona: 1, unita: 'g' }] })];
+    expect(ripulisciProgetto(p).avvisi).toEqual(['L’ingrediente "a1" non è nel ricettario: si vede con il suo codice e i suoi allergeni NON vengono controllati. Aggiungilo in Ricette o correggi la ricetta.']);
   });
 });

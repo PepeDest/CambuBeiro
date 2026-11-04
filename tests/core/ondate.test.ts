@@ -32,3 +32,18 @@ describe('assegnaOndate', () => {
     expect(avvisi.some((a) => a.ingredienteId === 'insalata' && a.giornoConsumo === 6)).toBe(true);
   });
 });
+
+describe('assegnaOndate: unità diverse dello stesso ingrediente', () => {
+  it('restano righe separate (non si sommano grammi e pezzi), e stessa unità si somma', () => {
+    const perGiorno = [
+      { giorno: 1, righe: [{ ingredienteId: 'xyz', quantita: 200, unita: 'g' as const }, { ingredienteId: 'xyz', quantita: 3, unita: 'pz' as const }] },
+      { giorno: 2, righe: [{ ingredienteId: 'xyz', quantita: 100, unita: 'g' as const }] },
+    ];
+    const { ondate, avvisi } = assegnaOndate(perGiorno, [1], ingMap);
+    expect(ondate).toEqual([{ giornoSpesa: 1, righe: [
+      { ingredienteId: 'xyz', quantita: 300, unita: 'g' },
+      { ingredienteId: 'xyz', quantita: 3, unita: 'pz' },
+    ] }]);
+    expect(avvisi).toEqual([]);
+  });
+});

@@ -1,6 +1,6 @@
 import type { Progetto, Menu } from '../core';
 import { databaseBase } from '../data';
-import { indiceIngredienti } from './catalogo';
+import { indiceIngredienti, indiceRicette } from './catalogo';
 
 /** "A", "B", "C" */
 const elencoNomi = (nomi: string[]): string => nomi.map((n) => `"${n}"`).join(', ');
@@ -91,9 +91,42 @@ function sostituzioniTraUnita(p: Progetto, avvisi: string[]): Progetto {
   return { ...p, menu };
 }
 
+/** Quanti codici elencare al massimo in un avviso. */
+const MAX_ELENCATI = 3;
+
+/**
+ * Ingredienti usati da ricette o aggiustamenti ma che non esistono: non si possono sistemare
+ * (non sappiamo cosa sono), quindi solo un avviso. Il progetto non cambia.
+ */
+function ingredientiSconosciuti(p: Progetto, avvisi: string[]): Progetto {
+  const ingredienti = indiceIngredienti(p);
+  const usati: string[] = [];
+  for (const r of indiceRicette(p).values()) usati.push(...r.ingredienti.map((riga) => riga.ingredienteId));
+  for (const pasti of Object.values(p.menu)) {
+    for (const piatti of Object.values(pasti)) {
+      for (const a of piatti ?? []) {
+        for (const x of a.aggiustamenti) {
+          if (x.tipo === 'sostituzione') usati.push(x.ingredienteDaId, x.ingredienteAId);
+          if (x.tipo === 'rimozione') usati.push(x.ingredienteId);
+        }
+      }
+    }
+  }
+  const sconosciuti = [...new Set(usati)].filter((id) => !ingredienti.has(id));
+  if (sconosciuti.length === 0) return p;
+
+  const altri = sconosciuti.length - MAX_ELENCATI;
+  const elenco = elencoNomi(sconosciuti.slice(0, MAX_ELENCATI)) + (altri > 0 ? ` e altri ${altri}` : '');
+  avvisi.push(sconosciuti.length === 1
+    ? `L’ingrediente ${elenco} non è nel ricettario: si vede con il suo codice e i suoi allergeni NON vengono controllati. Aggiungilo in Ricette o correggi la ricetta.`
+    : `Gli ingredienti ${elenco} non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.`);
+  return p;
+}
+
 /**
  * Sistema i progetti salvati con versioni vecchie dell'app o modificati a mano, che
- * contengono cose oggi bloccate perché rompevano i calcoli (unità che non tornano).
+ * contengono cose oggi bloccate perché rompevano i calcoli (unità che non tornano), e
+ * avvisa degli ingredienti che non esistono.
  * Restituisce lo stesso oggetto se non c'è niente da cambiare, e gli avvisi da mostrare all'utente.
  */
 export function ripulisciProgetto(p: Progetto): { progetto: Progetto; avvisi: string[] } {
@@ -103,5 +136,6 @@ export function ripulisciProgetto(p: Progetto): { progetto: Progetto; avvisi: st
   let progetto = unitaIngredientiBase(p, avvisi);
   progetto = unitaRicetteUtente(progetto, avvisi);
   progetto = sostituzioniTraUnita(progetto, avvisi);
+  progetto = ingredientiSconosciuti(progetto, avvisi);
   return { progetto, avvisi };
 }

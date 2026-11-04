@@ -1,5 +1,6 @@
 import type { Ingrediente, RigaFabbisogno } from './types';
 import type { FabbisognoPerGiorno } from './aggrega';
+import { chiaveRiga } from './fabbisogno';
 
 export type RigaOndata = RigaFabbisogno;
 export interface AvvisoDurata { ingredienteId: string; giornoConsumo: number; giornoSpesa: number; durataGiorni: number; }
@@ -35,10 +36,11 @@ export function assegnaOndate(
       const ing = ingredientiById.get(r.ingredienteId);
       const fresco = ing?.categoria === 'fresco';
       const giornoSpesa = fresco ? ondataPerGiorno(ordinati, giorno) : primaSpesa;
+      // Stesso ingrediente e stessa unità: grammi e pezzi non si sommano.
       const m = bucket(giornoSpesa);
-      const f = m.get(r.ingredienteId);
+      const f = m.get(chiaveRiga(r));
       if (f) f.quantita += r.quantita;
-      else m.set(r.ingredienteId, { ingredienteId: r.ingredienteId, quantita: r.quantita, unita: r.unita });
+      else m.set(chiaveRiga(r), { ingredienteId: r.ingredienteId, quantita: r.quantita, unita: r.unita });
 
       if (fresco && ing && ing.durataGiorni < giorno - giornoSpesa) {
         avvisi.push({ ingredienteId: r.ingredienteId, giornoConsumo: giorno, giornoSpesa, durataGiorni: ing.durataGiorni });

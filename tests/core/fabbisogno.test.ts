@@ -213,3 +213,21 @@ describe('fabbisognoAssegnazione: persone e porzioni', () => {
     }
   });
 });
+
+describe('fabbisognoAssegnazione: ingrediente fuori catalogo con unità diverse', () => {
+  it('una riga in pz e un sostituto che arriva in g restano due righe, senza errore', () => {
+    const r = makeRicetta({ id: 'r', ingredienti: [
+      { ingredienteId: 'xyz', dosePersona: 1, unita: 'pz' },
+      { ingredienteId: 'pasta', dosePersona: 100, unita: 'g' },
+    ] });
+    const out = fabbisognoAssegnazione(
+      { ricettaId: 'r', aggiustamenti: [{ tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'xyz', numeroPersone: 2 }] },
+      10, ricetteMap(r),
+    );
+    expect(out).toEqual([
+      { ingredienteId: 'xyz', quantita: 10, unita: 'pz' },
+      { ingredienteId: 'xyz', quantita: 200, unita: 'g' },
+      { ingredienteId: 'pasta', quantita: 800, unita: 'g' },
+    ]);
+  });
+});
