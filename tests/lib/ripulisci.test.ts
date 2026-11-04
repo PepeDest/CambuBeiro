@@ -30,7 +30,7 @@ describe('ripulisciProgetto', () => {
   });
   it('un progetto già a posto resta identico (stesso oggetto) e senza avvisi', () => {
     const p = progettoVuoto();
-    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [] });
+    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [], sconosciuti: [], avvisoSconosciuti: null });
     expect(ripulisciProgetto(p).progetto).toBe(p);
   });
 });
@@ -106,7 +106,7 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
       { ingredienteId: 'pinoli', dosePersona: 1, unita: 'pz' },
     ] })];
     p.menu = { 1: { pranzo: [{ ricettaId: 'risotto_milanese', aggiustamenti: [] }] } };
-    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [] });
+    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [], sconosciuti: [], avvisoSconosciuti: null });
     expect(ripulisciProgetto(p).progetto).toBe(p);
   });
 
@@ -117,7 +117,7 @@ describe('ripulisciProgetto: unità delle ricette e degli ingredienti', () => {
       { ingredienteId: 'farina', dosePersona: 10, unita: 'g' },
       { ingredienteId: 'tofu', dosePersona: 1, unita: 'pz' },
     ] })];
-    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [] });
+    expect(ripulisciProgetto(p)).toEqual({ progetto: p, avvisi: [], sconosciuti: [], avvisoSconosciuti: null });
     expect(ripulisciProgetto(p).progetto).toBe(p);
   });
 });
@@ -136,9 +136,13 @@ describe('ripulisciProgetto: ingredienti fuori catalogo', () => {
       { tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'abc', numeroPersone: 1 },
       { tipo: 'rimozione', ingredienteId: 'def', numeroPersone: 1 },
     ] }] } };
-    const { progetto, avvisi } = ripulisciProgetto(p);
+    const { progetto, avvisi, sconosciuti, avvisoSconosciuti } = ripulisciProgetto(p);
     expect(progetto).toBe(p);
-    expect(avvisi).toEqual(['Gli ingredienti "xyz", "abc", "def" non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.']);
+    const testo = 'Gli ingredienti "abc", "def", "xyz" non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.';
+    expect(avvisi).toEqual([testo]);
+    // a parte, per mostrarlo una volta sola (src/lib/persistenza.ts): codici in ordine, senza doppioni
+    expect(sconosciuti).toEqual(['abc', 'def', 'xyz']);
+    expect(avvisoSconosciuti).toBe(testo);
   });
 
   it('con tanti codici ne elenca pochi e dice quanti altri; con uno solo parla al singolare', () => {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { progetto, sezioneAttiva, avvisi, copiaRiserva, type Sezione } from './lib/store';
+  import { progetto, sezioneAttiva, avvisi, copiaRiserva, avvisiFileAperto, type Sezione } from './lib/store';
   import { ripulisciProgetto } from './lib/ripulisci';
   import { serializzaProgetto, deserializzaProgetto, progettoVuoto, type Progetto } from './core';
   import { creaFileExcel } from './lib/esporta-excel';
@@ -52,8 +52,9 @@
     const file = (e.target as HTMLInputElement).files?.[0];
     if (!file) return;
     try {
-      const { progetto: aperto, avvisi: note } = ripulisciProgetto(deserializzaProgetto(await file.text()));
-      sostituisciProgetto(aperto);
+      const ripulito = ripulisciProgetto(deserializzaProgetto(await file.text()));
+      sostituisciProgetto(ripulito.progetto);
+      const note = avvisiFileAperto(ripulito);
       if (note.length > 0) alert(note.join('\n'));
     } catch (err) {
       alert(err instanceof Error ? err.message : 'File non valido.');

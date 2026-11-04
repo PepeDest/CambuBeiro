@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store';
 import type { Progetto } from '../core';
 import { progettoVuoto } from '../core';
-import { apriStorage, caricaConAvvisi, salvaProgettoLocale, progettoDaAltraScheda, type Caricamento } from './persistenza';
+import { apriStorage, caricaConAvvisi, salvaProgettoLocale, progettoDaAltraScheda, filtraAvvisoSconosciuti, type Caricamento } from './persistenza';
+import type { Ripulitura } from './ripulisci';
 
 export type Sezione = 'campo' | 'presenze' | 'ricette' | 'menu' | 'dosi' | 'spesa';
 
@@ -23,6 +24,11 @@ export const copiaRiserva = writable<string | null>(iniziale.riserva);
 
 export function aggiungiAvviso(testo: string): void {
   avvisi.update((a) => (a.includes(testo) ? a : [...a, testo]));
+}
+
+/** Gli avvisi di un file appena aperto: tutti, e i codici fuori catalogo vengono ricordati per il prossimo avvio. */
+export function avvisiFileAperto(r: Ripulitura): string[] {
+  return filtraAvvisoSconosciuti(storage, r, { sempre: true });
 }
 
 // Autosalvataggio: attende 300 ms dall'ultima modifica, ma salva subito se la scheda

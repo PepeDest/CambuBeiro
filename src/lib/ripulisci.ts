@@ -96,9 +96,9 @@ const MAX_ELENCATI = 3;
 
 /**
  * Ingredienti usati da ricette o aggiustamenti ma che non esistono: non si possono sistemare
- * (non sappiamo cosa sono), quindi solo un avviso. Il progetto non cambia.
+ * (non sappiamo cosa sono), quindi solo un avviso. Codici in ordine, senza doppioni.
  */
-function ingredientiSconosciuti(p: Progetto, avvisi: string[]): Progetto {
+function ingredientiSconosciuti(p: Progetto): string[] {
   const ingredienti = indiceIngredienti(p);
   const usati: string[] = [];
   for (const r of indiceRicette(p).values()) usati.push(...r.ingredienti.map((riga) => riga.ingredienteId));
@@ -112,15 +112,26 @@ function ingredientiSconosciuti(p: Progetto, avvisi: string[]): Progetto {
       }
     }
   }
-  const sconosciuti = [...new Set(usati)].filter((id) => !ingredienti.has(id));
-  if (sconosciuti.length === 0) return p;
+  return [...new Set(usati)].filter((id) => !ingredienti.has(id)).sort();
+}
 
+function avvisoIngredientiSconosciuti(sconosciuti: string[]): string | null {
+  if (sconosciuti.length === 0) return null;
   const altri = sconosciuti.length - MAX_ELENCATI;
   const elenco = elencoNomi(sconosciuti.slice(0, MAX_ELENCATI)) + (altri > 0 ? ` e altri ${altri}` : '');
-  avvisi.push(sconosciuti.length === 1
+  return sconosciuti.length === 1
     ? `L’ingrediente ${elenco} non è nel ricettario: si vede con il suo codice e i suoi allergeni NON vengono controllati. Aggiungilo in Ricette o correggi la ricetta.`
-    : `Gli ingredienti ${elenco} non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.`);
-  return p;
+    : `Gli ingredienti ${elenco} non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.`;
+}
+
+export interface Ripulitura {
+  progetto: Progetto;
+  /** Tutti gli avvisi da mostrare, compreso `avvisoSconosciuti` se c'è. */
+  avvisi: string[];
+  /** Codici degli ingredienti che non esistono (in ordine, senza doppioni). */
+  sconosciuti: string[];
+  /** L'avviso per `sconosciuti`, oppure null: non cambia il progetto, quindi va mostrato una volta sola (vedi persistenza.ts). */
+  avvisoSconosciuti: string | null;
 }
 
 /**
@@ -129,13 +140,15 @@ function ingredientiSconosciuti(p: Progetto, avvisi: string[]): Progetto {
  * avvisa degli ingredienti che non esistono.
  * Restituisce lo stesso oggetto se non c'è niente da cambiare, e gli avvisi da mostrare all'utente.
  */
-export function ripulisciProgetto(p: Progetto): { progetto: Progetto; avvisi: string[] } {
+export function ripulisciProgetto(p: Progetto): Ripulitura {
   const avvisi: string[] = [];
   // L'ordine conta: prima le unità degli ingredienti, poi le ricette che li usano, e solo
   // alla fine le sostituzioni, che vanno controllate con le unità definitive.
   let progetto = unitaIngredientiBase(p, avvisi);
   progetto = unitaRicetteUtente(progetto, avvisi);
   progetto = sostituzioniTraUnita(progetto, avvisi);
-  progetto = ingredientiSconosciuti(progetto, avvisi);
-  return { progetto, avvisi };
+  const sconosciuti = ingredientiSconosciuti(progetto);
+  const avvisoSconosciuti = avvisoIngredientiSconosciuti(sconosciuti);
+  if (avvisoSconosciuti) avvisi.push(avvisoSconosciuti);
+  return { progetto, avvisi, sconosciuti, avvisoSconosciuti };
 }
