@@ -35,6 +35,14 @@ describe('conflitti', () => {
     expect(conflitti.some((c) => c.tipo === 'allergene' && c.dettaglio === 'lattosio' && c.personeInteressate === 3)).toBe(true);
     expect(conflitti.some((c) => c.tipo === 'vegetariano' && c.personeInteressate === 2)).toBe(true);
   });
+
+  it('i piatti di un pasto spento non danno conflitti (tornano se lo si riaccende)', () => {
+    const p = scenario(); // merenda spenta
+    p.menu = { 1: { merenda: [{ ricettaId: 'lasagne', aggiustamenti: [] }] } };
+    expect(rilevaConflitti(p, indicizzaRicette(p, []), indicizzaIngredienti(p, []))).toEqual([]);
+    p.campo.pastiAttivi = { ...p.campo.pastiAttivi, merenda: true };
+    expect(rilevaConflitti(p, indicizzaRicette(p, []), indicizzaIngredienti(p, [])).map((c) => c.pasto)).toEqual(['merenda', 'merenda']);
+  });
 });
 
 describe('personeCoperte: quante persone in conflitto sono davvero protette', () => {

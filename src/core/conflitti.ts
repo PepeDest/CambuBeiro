@@ -1,6 +1,5 @@
 import type { Progetto, Ricetta, Ingrediente, Allergene, Pasto, Assegnazione } from './types';
-import { PASTI } from './types';
-import { presenzeGiorno } from './lookup';
+import { presenzeGiorno, pastiAttiviCampo } from './lookup';
 
 export type TipoConflitto = 'allergene' | 'vegetariano';
 export interface Conflitto {
@@ -32,7 +31,7 @@ export function rilevaConflitti(
   for (let giorno = 1; giorno <= progetto.campo.numeroGiorni; giorno++) {
     const presenze = presenzeGiorno(progetto, giorno);
     const menuGiorno = progetto.menu[giorno] ?? {};
-    for (const pasto of PASTI) {
+    for (const pasto of pastiAttiviCampo(progetto.campo)) {
       for (const a of menuGiorno[pasto] ?? []) {
         const ricetta = ricetteById.get(a.ricettaId);
         if (!ricetta) continue;

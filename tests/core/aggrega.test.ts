@@ -36,6 +36,18 @@ describe('aggrega', () => {
     p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], cena: [{ ricettaId: 'b', aggiustamenti: [] }] } };
     expect(() => fabbisognoGiorno(p, 1, indicizzaRicette(p, []))).toThrow();
   });
+
+  it('un pasto spento in Campo non conta, ma i suoi piatti tornano se lo si riaccende', () => {
+    const p = progettoVuoto();
+    p.campo = makeCampo({ numeroGiorni: 1, giornoTipo: makePresenze({ adulti: 10 }) }); // merenda spenta
+    p.ricetteUtente = [makeRicetta({ id: 'a', ingredienti: [{ ingredienteId: 'passata_pomodoro', dosePersona: 80, unita: 'g' }] })];
+    p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], merenda: [{ ricettaId: 'a', aggiustamenti: [] }] } };
+    const ricette = indicizzaRicette(p, []);
+    expect(fabbisognoGiorno(p, 1, ricette).find((r) => r.ingredienteId === 'passata_pomodoro')!.quantita).toBe(800);
+    expect(fabbisognoCampoTotale(p, ricette).find((r) => r.ingredienteId === 'passata_pomodoro')!.quantita).toBe(800);
+    p.campo.pastiAttivi = { ...p.campo.pastiAttivi, merenda: true };
+    expect(fabbisognoGiorno(p, 1, ricette).find((r) => r.ingredienteId === 'passata_pomodoro')!.quantita).toBe(1600);
+  });
 });
 
 describe('lookup', () => {

@@ -1,8 +1,7 @@
 import type { Progetto, Ricetta, RigaFabbisogno } from './types';
-import { PASTI } from './types';
 import { porzioniBase } from './porzioni';
 import { accumula, fabbisognoAssegnazione } from './fabbisogno';
-import { presenzeGiorno } from './lookup';
+import { presenzeGiorno, pastiAttiviCampo } from './lookup';
 
 function merge(righe: RigaFabbisogno[]): RigaFabbisogno[] {
   const acc = new Map<string, RigaFabbisogno>();
@@ -17,7 +16,7 @@ export function fabbisognoGiorno(
   const porzioni = porzioniBase(presenze, progetto.campo.riduzioneBambini);
   const giornoMenu = progetto.menu[giorno] ?? {};
   const tutte: RigaFabbisogno[] = [];
-  for (const pasto of PASTI) {
+  for (const pasto of pastiAttiviCampo(progetto.campo)) {
     for (const a of giornoMenu[pasto] ?? []) {
       tutte.push(...fabbisognoAssegnazione(a, porzioni, ricetteById));
     }
