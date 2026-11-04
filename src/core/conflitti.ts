@@ -2,9 +2,13 @@ import type { Progetto, Ricetta, Ingrediente, Allergene, Pasto, Assegnazione } f
 import { presenzeGiorno, pastiAttiviCampo } from './lookup';
 
 export type TipoConflitto = 'allergene' | 'vegetariano';
+/** Da dove viene il problema, se non dal piatto: una sua variante o un ingrediente sostituto. */
+export type OrigineConflitto = { tipo: 'variante'; ricettaId: string } | { tipo: 'sostituzione'; ingredienteId: string };
 export interface Conflitto {
   giorno: number; pasto: Pasto; ricettaId: string;
   tipo: TipoConflitto; dettaglio: string; personeInteressate: number;
+  /** Assente per i conflitti del piatto. Con origine il conflitto non si può coprire: va cambiata o tolta la variante/sostituzione. */
+  origine?: OrigineConflitto;
 }
 
 export function allergeniRicetta(ricetta: Ricetta, ingredientiById: Map<string, Ingrediente>): Allergene[] {
@@ -35,12 +39,43 @@ export function rilevaConflitti(
       for (const a of menuGiorno[pasto] ?? []) {
         const ricetta = ricetteById.get(a.ricettaId);
         if (!ricetta) continue;
-        for (const allergene of allergeniRicetta(ricetta, ingredientiById)) {
+        const allergeniBase = allergeniRicetta(ricetta, ingredientiById);
+        const vegetarianoBase = ricettaVegetariana(ricetta, ingredientiById);
+        for (const allergene of allergeniBase) {
           const n = presenze.allergici[allergene] ?? 0;
           if (n > 0) out.push({ giorno, pasto, ricettaId: a.ricettaId, tipo: 'allergene', dettaglio: allergene, personeInteressate: n });
         }
-        if (presenze.vegetariani > 0 && !ricettaVegetariana(ricetta, ingredientiById)) {
+        if (presenze.vegetariani > 0 && !vegetarianoBase) {
           out.push({ giorno, pasto, ricettaId: a.ricettaId, tipo: 'vegetariano', dettaglio: 'vegetariani', personeInteressate: presenze.vegetariani });
+        }
+
+        // Varianti e sostituti con un problema che il piatto non ha: chi li mangia potrebbe essere
+        // tra gli allergici (o i vegetariani). Se il piatto ha già il problema basta il suo conflitto.
+        const ingredientiBase = new Set(ricetta.ingredienti.map((r) => r.ingredienteId));
+        for (const agg of a.aggiustamenti) {
+          let origine: OrigineConflitto, allergeni: Allergene[], vegetariano: boolean;
+          if (agg.tipo === 'variante') {
+            const variante = ricetteById.get(agg.ricettaVarianteId);
+            if (!variante) continue;
+            origine = { tipo: 'variante', ricettaId: agg.ricettaVarianteId };
+            allergeni = allergeniRicetta(variante, ingredientiById);
+            vegetariano = ricettaVegetariana(variante, ingredientiById);
+          } else if (agg.tipo === 'sostituzione' && ingredientiBase.has(agg.ingredienteDaId)) {
+            // Stesso criterio permissivo per un sostituto sconosciuto.
+            const sostituto = ingredientiById.get(agg.ingredienteAId);
+            origine = { tipo: 'sostituzione', ingredienteId: agg.ingredienteAId };
+            allergeni = sostituto?.allergeni ?? [];
+            vegetariano = sostituto?.vegetariano ?? true;
+          } else continue;
+
+          const aggiungi = (tipo: TipoConflitto, dettaglio: string, n: number) => {
+            const persone = Math.min(n, agg.numeroPersone);
+            if (persone > 0) out.push({ giorno, pasto, ricettaId: a.ricettaId, tipo, dettaglio, personeInteressate: persone, origine });
+          };
+          for (const allergene of allergeni) {
+            if (!allergeniBase.includes(allergene)) aggiungi('allergene', allergene, presenze.allergici[allergene] ?? 0);
+          }
+          if (vegetarianoBase && !vegetariano) aggiungi('vegetariano', 'vegetariani', presenze.vegetariani);
         }
       }
     }

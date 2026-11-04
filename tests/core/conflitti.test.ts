@@ -102,3 +102,102 @@ describe('personeCoperte: quante persone in conflitto sono davvero protette', ()
     ])).toBe(3);
   });
 });
+
+describe('conflitti di varianti e sostituti', () => {
+  // pasta (glutine), pomodoro, pesto (frutta a guscio), formaggio (lattosio), carne (non vegetariana)
+  function scenario(presenze: Partial<Parameters<typeof makePresenze>[0]> = {}, aggiustamenti: Aggiustamento[] = [], base = 'pasta_pomodoro') {
+    const p = progettoVuoto();
+    p.campo = makeCampo({ numeroGiorni: 1, giornoTipo: makePresenze({ adulti: 10, ...presenze }) });
+    p.ingredientiUtente = [
+      makeIngrediente({ id: 'pasta', allergeni: ['glutine'] }),
+      makeIngrediente({ id: 'pomodoro' }),
+      makeIngrediente({ id: 'pesto', allergeni: ['frutta_a_guscio'] }),
+      makeIngrediente({ id: 'formaggio', allergeni: ['lattosio'] }),
+      makeIngrediente({ id: 'carne', vegetariano: false }),
+    ];
+    const riga = (ingredienteId: string) => ({ ingredienteId, dosePersona: 50, unita: 'g' as const });
+    p.ricetteUtente = [
+      makeRicetta({ id: 'pasta_pomodoro', ingredienti: ['pasta', 'pomodoro'].map(riga) }),
+      makeRicetta({ id: 'pasta_pesto', ingredienti: ['pasta', 'pesto'].map(riga) }),
+      makeRicetta({ id: 'pesto_formaggio', ingredienti: ['pasta', 'pesto', 'formaggio'].map(riga) }),
+      makeRicetta({ id: 'ragu', ingredienti: ['pasta', 'carne'].map(riga) }),
+    ];
+    p.menu = { 1: { pranzo: [{ ricettaId: base, aggiustamenti }] } };
+    return p;
+  }
+  const conflitti = (p: ReturnType<typeof scenario>) => rilevaConflitti(p, indicizzaRicette(p, []), indicizzaIngredienti(p, []));
+  const daAggiustamenti = (p: ReturnType<typeof scenario>) => conflitti(p).filter((c) => c.origine);
+
+  it('una variante con un allergene che il piatto non ha è un conflitto, per al più le persone della variante', () => {
+    const p = scenario({ allergici: { frutta_a_guscio: 3 } }, [{ tipo: 'variante', ricettaVarianteId: 'pasta_pesto', numeroPersone: 2 }]);
+    expect(conflitti(p)).toEqual([{
+      giorno: 1, pasto: 'pranzo', ricettaId: 'pasta_pomodoro', tipo: 'allergene', dettaglio: 'frutta_a_guscio',
+      personeInteressate: 2, origine: { tipo: 'variante', ricettaId: 'pasta_pesto' },
+    }]);
+    const tanti = scenario({ allergici: { frutta_a_guscio: 3 } }, [{ tipo: 'variante', ricettaVarianteId: 'pasta_pesto', numeroPersone: 5 }]);
+    expect(conflitti(tanti)[0]!.personeInteressate).toBe(3); // min(3 allergici, 5 persone)
+  });
+
+  it('una variante con un allergene che il piatto ha già non aggiunge conflitti (c’è già quello del piatto)', () => {
+    const p = scenario({ allergici: { glutine: 2, frutta_a_guscio: 1 } }, [{ tipo: 'variante', ricettaVarianteId: 'pesto_formaggio', numeroPersone: 2 }], 'pasta_pesto');
+    expect(conflitti(p).map((c) => [c.dettaglio, c.origine])).toEqual([['glutine', undefined], ['frutta_a_guscio', undefined]]);
+  });
+
+  it('un sostituto con un allergene è un conflitto, solo se l’ingrediente tolto è nel piatto', () => {
+    const p = scenario({ allergici: { lattosio: 4 } }, [{ tipo: 'sostituzione', ingredienteDaId: 'pomodoro', ingredienteAId: 'formaggio', numeroPersone: 1 }]);
+    expect(conflitti(p)).toEqual([{
+      giorno: 1, pasto: 'pranzo', ricettaId: 'pasta_pomodoro', tipo: 'allergene', dettaglio: 'lattosio',
+      personeInteressate: 1, origine: { tipo: 'sostituzione', ingredienteId: 'formaggio' },
+    }]);
+    const fuoriPiatto = scenario({ allergici: { lattosio: 4 } }, [{ tipo: 'sostituzione', ingredienteDaId: 'carne', ingredienteAId: 'formaggio', numeroPersone: 1 }]);
+    expect(conflitti(fuoriPiatto)).toEqual([]);
+  });
+
+  it('un sostituto con un allergene che il piatto ha già, o sconosciuto, non aggiunge conflitti', () => {
+    const p = scenario({ allergici: { glutine: 2 } }, [
+      { tipo: 'sostituzione', ingredienteDaId: 'pomodoro', ingredienteAId: 'pasta', numeroPersone: 1 },
+      { tipo: 'sostituzione', ingredienteDaId: 'pomodoro', ingredienteAId: 'sconosciuto', numeroPersone: 1 },
+    ]);
+    expect(daAggiustamenti(p)).toEqual([]);
+  });
+
+  it('con dei vegetariani: una variante o un sostituto non vegetariani di un piatto vegetariano sono conflitti', () => {
+    const variante = scenario({ vegetariani: 2 }, [{ tipo: 'variante', ricettaVarianteId: 'ragu', numeroPersone: 4 }]);
+    expect(conflitti(variante)).toEqual([{
+      giorno: 1, pasto: 'pranzo', ricettaId: 'pasta_pomodoro', tipo: 'vegetariano', dettaglio: 'vegetariani',
+      personeInteressate: 2, origine: { tipo: 'variante', ricettaId: 'ragu' },
+    }]);
+    const sostituto = scenario({ vegetariani: 2 }, [{ tipo: 'sostituzione', ingredienteDaId: 'pomodoro', ingredienteAId: 'carne', numeroPersone: 1 }]);
+    expect(daAggiustamenti(sostituto)).toEqual([{
+      giorno: 1, pasto: 'pranzo', ricettaId: 'pasta_pomodoro', tipo: 'vegetariano', dettaglio: 'vegetariani',
+      personeInteressate: 1, origine: { tipo: 'sostituzione', ingredienteId: 'carne' },
+    }]);
+    // piatto già non vegetariano: basta il conflitto del piatto
+    const giaCarne = scenario({ vegetariani: 2 }, [{ tipo: 'variante', ricettaVarianteId: 'ragu', numeroPersone: 4 }], 'ragu');
+    expect(conflitti(giaCarne).map((c) => c.origine)).toEqual([undefined]);
+  });
+
+  it('nessun conflitto se quel giorno non ci sono allergici né vegetariani', () => {
+    const p = scenario({}, [
+      { tipo: 'variante', ricettaVarianteId: 'pesto_formaggio', numeroPersone: 2 },
+      { tipo: 'sostituzione', ingredienteDaId: 'pomodoro', ingredienteAId: 'carne', numeroPersone: 1 },
+    ]);
+    expect(conflitti(p)).toEqual([]);
+  });
+
+  it('due varianti con lo stesso allergene danno due conflitti, ognuno con la sua variante', () => {
+    const p = scenario({ allergici: { frutta_a_guscio: 3 } }, [
+      { tipo: 'variante', ricettaVarianteId: 'pasta_pesto', numeroPersone: 1 },
+      { tipo: 'variante', ricettaVarianteId: 'pesto_formaggio', numeroPersone: 1 },
+    ]);
+    expect(conflitti(p).map((c) => c.origine)).toEqual([
+      { tipo: 'variante', ricettaId: 'pasta_pesto' }, { tipo: 'variante', ricettaId: 'pesto_formaggio' },
+    ]);
+  });
+
+  it('una variante in un pasto spento non dà conflitti', () => {
+    const p = scenario({ allergici: { frutta_a_guscio: 3 } });
+    p.menu = { 1: { merenda: [{ ricettaId: 'pasta_pomodoro', aggiustamenti: [{ tipo: 'variante', ricettaVarianteId: 'pasta_pesto', numeroPersone: 2 }] }] } };
+    expect(conflitti(p)).toEqual([]);
+  });
+});

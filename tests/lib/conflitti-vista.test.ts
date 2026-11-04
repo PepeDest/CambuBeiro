@@ -3,7 +3,7 @@ import {
   conflittiVista, statoConflitti, personeImpegnate, personePresenti, personeDisponibili,
   puoAggiungereAggiustamento, creaAggiustamento, descriviAggiustamento, ingredientiSostitutivi,
 } from '../../src/lib/conflitti-vista';
-import { assegnaPiatto, aggiungiAggiustamento } from '../../src/lib/azioni';
+import { assegnaPiatto, aggiungiAggiustamento, rimuoviAggiustamento } from '../../src/lib/azioni';
 import { progettoVuoto } from '../../src/core';
 import type { Ricetta, Ingrediente } from '../../src/core';
 
@@ -118,5 +118,63 @@ describe('conflitti-vista', () => {
   it('descriviAggiustamento produce testo leggibile in italiano', () => {
     const p = scenario();
     expect(descriviAggiustamento({ tipo: 'rimozione', ingredienteId: 'besciamella', numeroPersone: 2 }, p)).toBe('Rimozione: Besciamella per 2 persone');
+  });
+});
+
+// Il piatto non ha il problema, ma una sua variante o un sostituto sì: chi la mangia potrebbe essere allergico.
+describe('conflitti-vista: varianti e sostituti con il problema', () => {
+  function scenarioVariante() {
+    let p = progettoVuoto();
+    p.campo.numeroGiorni = 1;
+    p.campo.giornoTipo = { adulti: 10, bambini: 0, vegetariani: 2, allergici: { frutta_a_guscio: 3, lattosio: 1 } };
+    const ing = (id: string, nome: string, over: Partial<Ingrediente> = {}) => ({ id, nome, unita: 'g', categoria: 'secco', durataGiorni: 30, confezione: { quantita: 500, unita: 'g', etichetta: 'confezione' }, allergeni: [], vegetariano: true, ...over }) as Ingrediente;
+    p.ingredientiUtente = [
+      ing('riso', 'Riso'), ing('zucchine', 'Zucchine'),
+      ing('pesto', 'Pesto', { allergeni: ['frutta_a_guscio'] }), ing('formaggio', 'Formaggio', { allergeni: ['lattosio'] }),
+      ing('salsiccia', 'Salsiccia', { vegetariano: false }),
+    ];
+    const ricetta = (id: string, nome: string, ingredienti: string[]) =>
+      ({ id, nome, categoria: 'primo', pasti: ['pranzo'], origine: 'utente', ingredienti: ingredienti.map((i) => ({ ingredienteId: i, dosePersona: 50, unita: 'g' })) }) as Ricetta;
+    p.ricetteUtente = [ricetta('risotto', 'Risotto alle zucchine', ['riso', 'zucchine']), ricetta('riso_pesto', 'Riso al pesto', ['riso', 'pesto'])];
+    p = assegnaPiatto(p, 1, 'pranzo', 'risotto');
+    return p;
+  }
+
+  it('una variante con un allergene nuovo è un conflitto da gestire, che non si può coprire', () => {
+    let p = scenarioVariante();
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'risotto', { tipo: 'variante', ricettaVarianteId: 'riso_pesto', numeroPersone: 2 });
+    // altri aggiustamenti del piatto non lo coprono: il problema è nella variante
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'risotto', { tipo: 'rimozione', ingredienteId: 'zucchine', numeroPersone: 3 });
+    const stato = statoConflitti(p);
+    expect(stato.nonGestiti).toHaveLength(1);
+    const c = stato.nonGestiti[0]!;
+    expect(c).toMatchObject({ ricettaId: 'risotto', nomeRicetta: 'Risotto alle zucchine', dettaglio: 'frutta_a_guscio', personeInteressate: 2, coperte: 0, gestito: false });
+    expect(c.descrizione).toBe('La variante «Riso al pesto» contiene Frutta a guscio');
+    expect(stato.statoPiatto(1, 'pranzo', 'risotto')).toBe('warn');
+    expect(stato.cellaAttiva(1, 'pranzo')).toBe(true);
+  });
+
+  it('i conflitti del piatto non hanno descrizione; quelli dei sostituti e delle varianti non vegetariane sì', () => {
+    let p = scenarioVariante();
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'risotto', { tipo: 'sostituzione', ingredienteDaId: 'zucchine', ingredienteAId: 'formaggio', numeroPersone: 1 });
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'risotto', { tipo: 'sostituzione', ingredienteDaId: 'zucchine', ingredienteAId: 'salsiccia', numeroPersone: 1 });
+    expect(conflittiVista(p).map((c) => c.descrizione)).toEqual([
+      'Il sostituto «Formaggio» contiene Lattosio',
+      'Il sostituto «Salsiccia» non è vegetariano',
+    ]);
+    let q = scenarioVariante();
+    q.ricetteUtente = [...q.ricetteUtente, { id: 'riso_salsiccia', nome: 'Riso e salsiccia', categoria: 'primo', pasti: ['pranzo'], origine: 'utente', ingredienti: [{ ingredienteId: 'salsiccia', dosePersona: 50, unita: 'g' }] } as Ricetta];
+    q = aggiungiAggiustamento(q, 1, 'pranzo', 'risotto', { tipo: 'variante', ricettaVarianteId: 'riso_salsiccia', numeroPersone: 5 });
+    expect(conflittiVista(q).map((c) => [c.descrizione, c.personeInteressate])).toEqual([['La variante «Riso e salsiccia» non è vegetariana', 2]]);
+    expect(conflittiVista(scenario())[0]!.descrizione).toBeUndefined();
+  });
+
+  it('togliendo la variante il conflitto sparisce', () => {
+    let p = scenarioVariante();
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'risotto', { tipo: 'variante', ricettaVarianteId: 'riso_pesto', numeroPersone: 2 });
+    expect(statoConflitti(p).nonGestiti).toHaveLength(1);
+    p = rimuoviAggiustamento(p, 1, 'pranzo', 'risotto', 0);
+    expect(statoConflitti(p).elenco).toEqual([]);
+    expect(statoConflitti(p).statoPiatto(1, 'pranzo', 'risotto')).toBe('');
   });
 });

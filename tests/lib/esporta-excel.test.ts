@@ -48,6 +48,21 @@ describe('datiFoglioMenu', () => {
     expect(cella).toContain('Rimozione: Formaggio');
     expect(cella).not.toContain('⚠️');
   });
+  it('una variante con un allergene che il piatto non ha mette ⚠️ nella cella', () => {
+    let p = progettoVuoto();
+    p.campo.numeroGiorni = 1;
+    p.campo.pastiAttivi = { colazione: false, pranzo: true, cena: false, merenda: false };
+    p.campo.giornoTipo = { adulti: 10, bambini: 0, vegetariani: 0, allergici: { lattosio: 2 } };
+    p.ingredientiUtente = [{ id: 'form', nome: 'Formaggio', unita: 'g', categoria: 'fresco', durataGiorni: 10, confezione: { quantita: 200, unita: 'g', etichetta: 'confezione' }, allergeni: ['lattosio'], vegetariano: true } as any];
+    p.ricetteUtente = [
+      { id: 'piatto_semplice', nome: 'Piatto semplice', categoria: 'primo', pasti: ['pranzo'], origine: 'utente', ingredienti: [{ ingredienteId: 'riso', dosePersona: 80, unita: 'g' }] } as any,
+      { id: 'piatto_form', nome: 'Piatto formaggio', categoria: 'primo', pasti: ['pranzo'], origine: 'utente', ingredienti: [{ ingredienteId: 'form', dosePersona: 50, unita: 'g' }] } as any,
+    ];
+    p = assegnaPiatto(p, 1, 'pranzo', 'piatto_semplice');
+    expect(datiFoglioMenu(p)[1]![1]).not.toContain('⚠️');
+    p = aggiungiAggiustamento(p, 1, 'pranzo', 'piatto_semplice', { tipo: 'variante', ricettaVarianteId: 'piatto_form', numeroPersone: 3 });
+    expect(datiFoglioMenu(p)[1]![1]).toContain('⚠️');
+  });
 });
 
 describe('datiFoglioSpesa / datiFoglioDosi', () => {

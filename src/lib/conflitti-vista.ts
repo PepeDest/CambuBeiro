@@ -1,4 +1,4 @@
-import type { Progetto, Pasto, Assegnazione, Aggiustamento, Ingrediente, Allergene } from '../core';
+import type { Progetto, Pasto, Assegnazione, Aggiustamento, Ingrediente, Allergene, Conflitto } from '../core';
 import { rilevaConflitti, personeCoperte, presenzeGiorno, ETICHETTE_ALLERGENE } from '../core';
 import { indiceRicette, indiceIngredienti, ingredientiDisponibili, nomeRicetta, nomeIngrediente } from './catalogo';
 
@@ -11,6 +11,19 @@ export interface ConflittoVista {
   coperte: number;
   /** true quando tutte le persone interessate sono protette. */
   gestito: boolean;
+  /** Da dove viene il problema, se non dal piatto (una variante o un sostituto). */
+  origine?: Conflitto['origine'];
+  /** Solo con origine: il problema in parole, es. "La variante «Pasta al pesto» contiene Frutta a guscio". */
+  descrizione?: string;
+}
+
+/** "La variante «…» contiene Lattosio", "Il sostituto «…» non è vegetariano". */
+function descriviOrigine(p: Progetto, c: Conflitto, etichetta: string): string | undefined {
+  const o = c.origine;
+  if (!o) return undefined;
+  const chi = o.tipo === 'variante' ? `La variante «${nomeRicetta(p, o.ricettaId)}»` : `Il sostituto «${nomeIngrediente(p, o.ingredienteId)}»`;
+  if (c.tipo === 'allergene') return `${chi} contiene ${etichetta}`;
+  return `${chi} non è ${o.tipo === 'variante' ? 'vegetariana' : 'vegetariano'}`;
 }
 
 export function trovaAssegnazione(p: Progetto, giorno: number, pasto: Pasto, ricettaId: string): Assegnazione | undefined {
@@ -22,9 +35,14 @@ export function conflittiVista(p: Progetto): ConflittoVista[] {
   const ingredienti = indiceIngredienti(p);
   return rilevaConflitti(p, ricette, ingredienti).map((c) => {
     const a = trovaAssegnazione(p, c.giorno, c.pasto, c.ricettaId);
-    const coperte = a ? personeCoperte(c, a, ricette, ingredienti) : 0;
+    // Un problema portato da una variante o da un sostituto non si copre: va cambiato o tolto.
+    const coperte = a && !c.origine ? personeCoperte(c, a, ricette, ingredienti) : 0;
     const etichetta = c.tipo === 'vegetariano' ? 'Vegetariani' : ETICHETTE_ALLERGENE[c.dettaglio as Allergene] ?? c.dettaglio;
-    return { ...c, nomeRicetta: nomeRicetta(p, c.ricettaId), etichetta, coperte, gestito: coperte >= c.personeInteressate };
+    const descrizione = descriviOrigine(p, c, etichetta);
+    return {
+      ...c, nomeRicetta: nomeRicetta(p, c.ricettaId), etichetta, coperte, gestito: coperte >= c.personeInteressate,
+      ...(descrizione ? { descrizione } : {}),
+    };
   });
 }
 
