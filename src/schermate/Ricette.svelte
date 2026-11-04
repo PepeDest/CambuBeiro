@@ -31,7 +31,8 @@
   $: unitaBloccata = ingredienteInModifica !== null && usiIngrediente($progetto, ingredienteInModifica.id).length > 0;
 
   function unitaDi(id: string): Unita { return indiceIngredienti($progetto).get(id)?.unita ?? 'g'; }
-  function aggiungiRiga() { fr.righe = [...fr.righe, { ...rigaVuota(), ingredienteId: ingredienti[0]?.id ?? '' }]; }
+  // Riga senza ingrediente: lo sceglie l'utente (o "Nuovo ingrediente" la riempie).
+  function aggiungiRiga() { fr.righe = [...fr.righe, rigaVuota()]; }
   function togliRiga(i: number) { fr.righe = fr.righe.filter((_, k) => k !== i); }
 
   function nuovaRicetta() {
