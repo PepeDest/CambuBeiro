@@ -14,11 +14,14 @@ export function fabbisognoGiorno(
 ): RigaFabbisogno[] {
   const presenze = presenzeGiorno(progetto, giorno);
   const porzioni = porzioniBase(presenze, progetto.campo.riduzioneBambini);
+  // Porzione media a persona: trasforma le persone degli aggiustamenti in porzioni.
+  const persone = presenze.adulti + presenze.bambini;
+  const porzioniPerPersona = persone > 0 ? porzioni / persone : 0;
   const giornoMenu = progetto.menu[giorno] ?? {};
   const tutte: RigaFabbisogno[] = [];
   for (const pasto of pastiAttiviCampo(progetto.campo)) {
     for (const a of giornoMenu[pasto] ?? []) {
-      tutte.push(...fabbisognoAssegnazione(a, porzioni, ricetteById));
+      tutte.push(...fabbisognoAssegnazione(a, porzioni, ricetteById, porzioniPerPersona));
     }
   }
   return merge(tutte);

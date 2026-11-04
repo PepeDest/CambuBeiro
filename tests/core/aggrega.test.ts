@@ -3,6 +3,7 @@ import { indicizzaRicette, presenzeGiorno } from '../../src/core/lookup';
 import { progettoVuoto } from '../../src/core/progetto';
 import { makeCampo, makePresenze, makeRicetta } from '../helpers/factories';
 import { fabbisognoGiorno, fabbisognoCampoTotale } from '../../src/core/aggrega';
+import type { Aggiustamento } from '../../src/core/types';
 
 describe('aggrega', () => {
   it('sums the same ingredient across two dishes in one day', () => {
@@ -35,6 +36,40 @@ describe('aggrega', () => {
     ];
     p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti: [] }], cena: [{ ricettaId: 'b', aggiustamenti: [] }] } };
     expect(() => fabbisognoGiorno(p, 1, indicizzaRicette(p, []))).toThrow();
+  });
+
+  describe('aggiustamenti: le persone diventano porzioni del giorno', () => {
+    function giorno(adulti: number, bambini: number, aggiustamenti: Aggiustamento[]) {
+      const p = progettoVuoto();
+      p.campo = makeCampo({ numeroGiorni: 1, riduzioneBambini: 0.3, giornoTipo: makePresenze({ adulti, bambini }) });
+      p.ricetteUtente = [
+        makeRicetta({ id: 'a', ingredienti: [{ ingredienteId: 'pasta', dosePersona: 100, unita: 'g' }, { ingredienteId: 'passata_pomodoro', dosePersona: 80, unita: 'g' }] }),
+        makeRicetta({ id: 'v', ingredienti: [{ ingredienteId: 'riso', dosePersona: 90, unita: 'g' }] }),
+      ];
+      p.menu = { 1: { pranzo: [{ ricettaId: 'a', aggiustamenti }] } };
+      const righe = fabbisognoGiorno(p, 1, indicizzaRicette(p, []));
+      return (id: string) => righe.find((r) => r.ingredienteId === id)?.quantita ?? 0;
+    }
+
+    it('10 bambini: variante e sostituzione per tutti e 10 comprano 7 porzioni, come il piatto', () => {
+      expect(giorno(0, 10, [{ tipo: 'variante', ricettaVarianteId: 'v', numeroPersone: 10 }])('riso')).toBeCloseTo(630);
+      const q = giorno(0, 10, [{ tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'pasta_senza_glutine', numeroPersone: 10 }]);
+      expect(q('pasta_senza_glutine')).toBeCloseTo(700);
+      expect(q('pasta')).toBe(0);
+    });
+
+    it('solo adulti: come prima, una persona è una porzione', () => {
+      const q = giorno(10, 0, [
+        { tipo: 'variante', ricettaVarianteId: 'v', numeroPersone: 4 },
+        { tipo: 'sostituzione', ingredienteDaId: 'pasta', ingredienteAId: 'pasta_senza_glutine', numeroPersone: 3 },
+      ]);
+      expect([q('riso'), q('pasta'), q('pasta_senza_glutine'), q('passata_pomodoro')]).toEqual([360, 300, 300, 480]);
+    });
+
+    it('nessuno presente: niente da comprare, anche con una variante rimasta nel menu', () => {
+      const q = giorno(0, 0, [{ tipo: 'variante', ricettaVarianteId: 'v', numeroPersone: 2 }]);
+      expect([q('riso'), q('pasta'), q('passata_pomodoro')]).toEqual([0, 0, 0]);
+    });
   });
 
   it('un pasto spento in Campo non conta, ma i suoi piatti tornano se lo si riaccende', () => {
