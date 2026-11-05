@@ -1,4 +1,4 @@
-import { PASTI, ALLERGENI } from './types';
+import { PASTI, ALLERGENI, MAX_GIORNI } from './types';
 
 // Controllo del contenuto di un progetto letto da file o dal browser: un file rovinato
 // va rifiutato PRIMA di entrare nell'app, altrimenti la blocca (e il salvataggio
@@ -73,6 +73,7 @@ function campo(v: unknown): Errore {
   return primo(
     () => testo(v, 'nome', dove),
     () => (eIntero(v.numeroGiorni, 1) ? null : '"campo.numeroGiorni" deve essere un numero intero ≥ 1.'),
+    () => ((v.numeroGiorni as number) <= MAX_GIORNI ? null : `"campo.numeroGiorni" è troppo grande: un campo dura al massimo ${MAX_GIORNI} giorni.`),
     () => {
       const pa = v.pastiAttivi;
       return eOggetto(pa) && PASTI.every((p) => typeof pa[p] === 'boolean')

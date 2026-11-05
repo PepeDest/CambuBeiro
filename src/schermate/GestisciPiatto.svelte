@@ -67,7 +67,12 @@
   {#if conflittiPiatto.length > 0}
     <div class="conflitti">
       {#each conflittiPiatto as c}
-        <div>{c.gestito ? '✓' : '⚠️'} {c.tipo === 'allergene' ? `Contiene: ${c.etichetta}` : 'Non vegetariano'} — protette {c.coperte} su {c.personeInteressate} persone</div>
+        {#if c.origine && c.descrizione}
+          <!-- Non si copre: l'utente deve cambiare o togliere la variante/sostituzione. -->
+          <div>⚠️ {c.descrizione} (fino a {c.personeInteressate} persone): cambia o togli {c.origine.tipo === 'variante' ? 'la variante' : 'la sostituzione'}, oppure assicurati che {c.tipo === 'allergene' ? 'chi è allergico' : 'chi è vegetariano'} non ne mangi.</div>
+        {:else}
+          <div>{c.gestito ? '✓' : '⚠️'} {c.tipo === 'allergene' ? `Contiene: ${c.etichetta}` : 'Non vegetariano'} — protette {c.coperte} su {c.personeInteressate} persone</div>
+        {/if}
       {/each}
     </div>
   {:else}

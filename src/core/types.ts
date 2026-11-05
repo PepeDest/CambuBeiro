@@ -69,6 +69,8 @@ export interface Progetto {
 export interface RigaFabbisogno { ingredienteId: string; quantita: number; unita: Unita; }
 
 // Costanti condivise da motore, lib e schermate (un solo posto da modificare).
+/** Durata massima di un campo: oltre, un numero scritto per sbaglio (es. 1000) o un file rovinato bloccherebbe l'app. */
+export const MAX_GIORNI = 60;
 /** I pasti della giornata, nell'ordine in cui si calcolano e si mostrano. */
 export const PASTI: Pasto[] = ['colazione', 'pranzo', 'cena', 'merenda'];
 export const ETICHETTE_PASTO: Record<Pasto, string> = {

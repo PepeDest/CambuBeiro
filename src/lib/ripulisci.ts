@@ -1,14 +1,67 @@
 import type { Progetto, Menu } from '../core';
-import { indiceIngredienti } from './catalogo';
+import { databaseBase } from '../data';
+import { indiceIngredienti, indiceRicette } from './catalogo';
+
+/** "A", "B", "C" */
+const elencoNomi = (nomi: string[]): string => nomi.map((n) => `"${n}"`).join(', ');
 
 /**
- * Sistema i progetti salvati con versioni vecchie dell'app, che permettevano cose oggi
- * bloccate perché rompevano i calcoli. Restituisce lo stesso oggetto se non c'è niente
- * da cambiare, e gli avvisi da mostrare all'utente.
+ * Un ingrediente del ricettario che l'utente ha cambiato di unità (es. farina "a pezzi"),
+ * mentre le ricette del ricettario lo usano ancora nella sua unità: torna all'unità del
+ * ricettario, con la confezione del ricettario. Le ricette personalizzate non contano:
+ * le sistema `unitaRicetteUtente`.
  */
-export function ripulisciProgetto(p: Progetto): { progetto: Progetto; avvisi: string[] } {
-  // Sostituzione tra unità diverse (es. uova in pezzi -> farina in grammi): la dose passa
-  // tale e quale al nuovo ingrediente, quindi il risultato non avrebbe senso.
+function unitaIngredientiBase(p: Progetto, avvisi: string[]): Progetto {
+  const personalizzate = new Set(p.ricetteUtente.map((r) => r.id));
+  const usati = new Set(databaseBase.ricette
+    .filter((r) => !personalizzate.has(r.id))
+    .flatMap((r) => r.ingredienti.map((riga) => riga.ingredienteId)));
+  const base = new Map(databaseBase.ingredienti.map((i) => [i.id, i]));
+
+  const rimessi: string[] = [];
+  const ingredientiUtente = p.ingredientiUtente.map((i) => {
+    const b = base.get(i.id);
+    if (!b || b.unita === i.unita || !usati.has(i.id)) return i;
+    rimessi.push(i.nome);
+    return { ...i, unita: b.unita, confezione: { ...i.confezione, quantita: b.confezione.quantita, unita: b.confezione.unita } };
+  });
+
+  if (rimessi.length === 0) return p;
+  avvisi.push(rimessi.length === 1
+    ? `L’ingrediente ${elencoNomi(rimessi)} aveva un’unità diversa da quella usata dalle ricette del ricettario: ho rimesso quella del ricettario. Controlla la sua confezione.`
+    : `Gli ingredienti ${elencoNomi(rimessi)} avevano un’unità diversa da quella usata dalle ricette del ricettario: ho rimesso quella del ricettario. Controlla le loro confezioni.`);
+  return { ...p, ingredientiUtente };
+}
+
+/** Le righe delle ricette dell'utente prendono l'unità dell'ingrediente (la dose va ricontrollata). */
+function unitaRicetteUtente(p: Progetto, avvisi: string[]): Progetto {
+  const ingredienti = indiceIngredienti(p);
+  const corrette: string[] = [];
+  const ricetteUtente = p.ricetteUtente.map((r) => {
+    let cambiata = false;
+    const righe = r.ingredienti.map((riga) => {
+      // Un ingrediente sconosciuto non ha un'unità di riferimento: resta com'è.
+      const unita = ingredienti.get(riga.ingredienteId)?.unita;
+      if (!unita || unita === riga.unita) return riga;
+      cambiata = true;
+      return { ...riga, unita };
+    });
+    if (!cambiata) return r;
+    corrette.push(r.nome);
+    return { ...r, ingredienti: righe };
+  });
+
+  if (corrette.length === 0) return p;
+  const dove = corrette.length === 1 ? `Nella ricetta ${elencoNomi(corrette)}` : `Nelle ricette ${elencoNomi(corrette)}`;
+  avvisi.push(`${dove} c’erano dosi in un’unità diversa da quella dell’ingrediente (es. grammi invece di pezzi): ho messo l’unità giusta, controlla le dosi.`);
+  return { ...p, ricetteUtente };
+}
+
+/**
+ * Sostituzione tra unità diverse (es. uova in pezzi -> farina in grammi): la dose passa
+ * tale e quale al nuovo ingrediente, quindi il risultato non avrebbe senso.
+ */
+function sostituzioniTraUnita(p: Progetto, avvisi: string[]): Progetto {
   const ingredienti = indiceIngredienti(p);
   const unitaDiversa = (da: string, a: string): boolean => {
     const u1 = ingredienti.get(da)?.unita;
@@ -32,10 +85,70 @@ export function ripulisciProgetto(p: Progetto): { progetto: Progetto; avvisi: st
     menu[Number(giorno)] = nuoviPasti;
   }
 
-  if (tolte === 0) return { progetto: p, avvisi: [] };
+  if (tolte === 0) return p;
   const testo = tolte === 1 ? 'Tolta 1 sostituzione' : `Tolte ${tolte} sostituzioni`;
-  return {
-    progetto: { ...p, menu },
-    avvisi: [`${testo} tra ingredienti che si misurano in modo diverso (es. pezzi e grammi).`],
-  };
+  avvisi.push(`${testo} tra ingredienti che si misurano in modo diverso (es. pezzi e grammi).`);
+  return { ...p, menu };
+}
+
+/** Quanti codici elencare al massimo in un avviso. */
+const MAX_ELENCATI = 3;
+
+/**
+ * Ingredienti usati da ricette o aggiustamenti ma che non esistono: non si possono sistemare
+ * (non sappiamo cosa sono), quindi solo un avviso. Codici in ordine, senza doppioni.
+ */
+function ingredientiSconosciuti(p: Progetto): string[] {
+  const ingredienti = indiceIngredienti(p);
+  const usati: string[] = [];
+  for (const r of indiceRicette(p).values()) usati.push(...r.ingredienti.map((riga) => riga.ingredienteId));
+  for (const pasti of Object.values(p.menu)) {
+    for (const piatti of Object.values(pasti)) {
+      for (const a of piatti ?? []) {
+        for (const x of a.aggiustamenti) {
+          if (x.tipo === 'sostituzione') usati.push(x.ingredienteDaId, x.ingredienteAId);
+          if (x.tipo === 'rimozione') usati.push(x.ingredienteId);
+        }
+      }
+    }
+  }
+  return [...new Set(usati)].filter((id) => !ingredienti.has(id)).sort();
+}
+
+function avvisoIngredientiSconosciuti(sconosciuti: string[]): string | null {
+  if (sconosciuti.length === 0) return null;
+  const altri = sconosciuti.length - MAX_ELENCATI;
+  const elenco = elencoNomi(sconosciuti.slice(0, MAX_ELENCATI)) + (altri > 0 ? ` e altri ${altri}` : '');
+  return sconosciuti.length === 1
+    ? `L’ingrediente ${elenco} non è nel ricettario: si vede con il suo codice e i suoi allergeni NON vengono controllati. Aggiungilo in Ricette o correggi la ricetta.`
+    : `Gli ingredienti ${elenco} non sono nel ricettario: si vedono con il loro codice e i loro allergeni NON vengono controllati. Aggiungili in Ricette o correggi le ricette.`;
+}
+
+export interface Ripulitura {
+  progetto: Progetto;
+  /** Tutti gli avvisi da mostrare, compreso `avvisoSconosciuti` se c'è. */
+  avvisi: string[];
+  /** Codici degli ingredienti che non esistono (in ordine, senza doppioni). */
+  sconosciuti: string[];
+  /** L'avviso per `sconosciuti`, oppure null: non cambia il progetto, quindi va mostrato una volta sola (vedi persistenza.ts). */
+  avvisoSconosciuti: string | null;
+}
+
+/**
+ * Sistema i progetti salvati con versioni vecchie dell'app o modificati a mano, che
+ * contengono cose oggi bloccate perché rompevano i calcoli (unità che non tornano), e
+ * avvisa degli ingredienti che non esistono.
+ * Restituisce lo stesso oggetto se non c'è niente da cambiare, e gli avvisi da mostrare all'utente.
+ */
+export function ripulisciProgetto(p: Progetto): Ripulitura {
+  const avvisi: string[] = [];
+  // L'ordine conta: prima le unità degli ingredienti, poi le ricette che li usano, e solo
+  // alla fine le sostituzioni, che vanno controllate con le unità definitive.
+  let progetto = unitaIngredientiBase(p, avvisi);
+  progetto = unitaRicetteUtente(progetto, avvisi);
+  progetto = sostituzioniTraUnita(progetto, avvisi);
+  const sconosciuti = ingredientiSconosciuti(progetto);
+  const avvisoSconosciuti = avvisoIngredientiSconosciuti(sconosciuti);
+  if (avvisoSconosciuti) avvisi.push(avvisoSconosciuti);
+  return { progetto, avvisi, sconosciuti, avvisoSconosciuti };
 }

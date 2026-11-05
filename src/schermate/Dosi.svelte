@@ -8,6 +8,8 @@
   let giorno = 1;
 
   $: giorni = giorniCampo($progetto.campo);
+  // Se il campo si accorcia, il giorno scelto potrebbe non esserci più.
+  $: if (giorno > giorni.length) giorno = 1;
   $: righe = vista === 'campo' ? righeDosiCampo($progetto) : righeDosiGiorno($progetto, giorno);
 </script>
 
